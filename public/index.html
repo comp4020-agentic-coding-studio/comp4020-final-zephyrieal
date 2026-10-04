@@ -15,13 +15,22 @@
         next visitor.
       </p>
 
-      <section class="meadow" aria-live="polite">
+      <section class="meadow-wrap">
         <p class="guinea-pig">
           🐹 <span id="pig-name">Potato</span> is in the meadow, looking
           <span id="pig-personality">curious</span>.
         </p>
-        <p id="trace">Loading the sanctuary's memory…</p>
+        <p id="trace" aria-live="polite">Loading the sanctuary's memory…</p>
         <button id="feed-button" type="button">Feed Potato</button>
+
+        <div
+          id="meadow"
+          class="meadow"
+          role="button"
+          tabindex="0"
+          aria-label="The meadow. Click or press Enter to plant a flower where you are."
+        ></div>
+        <p id="flower-trace" aria-live="polite"></p>
       </section>
 
       <p class="footer">

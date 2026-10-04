@@ -29,6 +29,20 @@ db.exec(`
   );
 `);
 
+// Flowers are a trace left on the *sanctuary*, not on the guinea pig: unlike
+// feeding, this changes the shared environment itself, and every flower
+// planted stays --- nobody owns the ones they planted, and nothing here lets
+// a visitor remove someone else's (see CLAUDE.md, "nobody owns anything").
+db.exec(`
+  CREATE TABLE IF NOT EXISTS flowers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    x REAL NOT NULL,
+    y REAL NOT NULL,
+    planted_by TEXT NOT NULL,
+    planted_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
 // Potato is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.

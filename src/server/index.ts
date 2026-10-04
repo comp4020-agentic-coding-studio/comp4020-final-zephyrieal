@@ -53,16 +53,30 @@ function getPotato(): GuineaPig {
     .get() as unknown as GuineaPig;
 }
 
-// The core thing, for now: see Potato, feed Potato, and find the sanctuary
-// remembers it. Everything else in the full design (other guinea pigs,
-// gestures, construction, more than one visitor at once) waits for later
-// weeks --- this is proof of life, not the finished app.
+interface Flower {
+  id: number;
+  x: number;
+  y: number;
+  planted_at: string;
+}
+
+function getFlowers(): Flower[] {
+  return db
+    .prepare("SELECT id, x, y, planted_at FROM flowers ORDER BY id ASC")
+    .all() as unknown as Flower[];
+}
+
+// The core thing, for now: see Potato, feed Potato, plant a flower, and find
+// the sanctuary remembers all of it. Everything else in the full design
+// (other guinea pigs, gestures, construction, more than one visitor at once)
+// waits for later weeks --- this is proof of life, not the finished app.
 app.get("/api/state", (_req: Request, res: Response) => {
   const guineaPig = getPotato();
+  const flowers = getFlowers();
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
-  res.json({ guineaPig, recentVisits });
+  res.json({ guineaPig, flowers, recentVisits });
 });
 
 app.post("/api/feed", (req: Request, res: Response) => {
@@ -73,6 +87,30 @@ app.post("/api/feed", (req: Request, res: Response) => {
     req.visitorId,
   );
   res.json({ guineaPig: getPotato() });
+});
+
+// A flower is planted at a position in the meadow and stays there for every
+// future visitor --- the server decides what actually gets stored (clamped,
+// validated coordinates), never trusting the client's number outright, per
+// CLAUDE.md's "the server is authoritative" rule.
+app.post("/api/plant", (req: Request, res: Response) => {
+  const { x, y } = req.body as { x?: unknown; y?: unknown };
+  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+    res.status(400).json({ error: "x and y must be numbers" });
+    return;
+  }
+  const clampedX = Math.min(100, Math.max(0, x));
+  const clampedY = Math.min(100, Math.max(0, y));
+
+  db.prepare("INSERT INTO flowers (x, y, planted_by) VALUES (?, ?, ?)").run(
+    clampedX,
+    clampedY,
+    req.visitorId,
+  );
+  db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, 'planted a flower')").run(
+    req.visitorId,
+  );
+  res.json({ flowers: getFlowers() });
 });
 
 // Publishes README.md in full at /readme/, rendered rather than escaped

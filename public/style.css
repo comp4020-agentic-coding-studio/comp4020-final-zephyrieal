@@ -22,11 +22,33 @@ main {
   line-height: 1.5;
 }
 
-.meadow {
+.meadow-wrap {
   background: var(--meadow);
   border-radius: 1rem;
   padding: 1.5rem;
   margin: 2rem 0;
+}
+
+.meadow {
+  position: relative;
+  height: 14rem;
+  margin-top: 1rem;
+  background: #dcebd4;
+  border: 2px dashed #9ab98c;
+  border-radius: 0.75rem;
+  cursor: crosshair;
+}
+
+.meadow:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.flower {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 1.4rem;
+  pointer-events: none;
 }
 
 .guinea-pig {
