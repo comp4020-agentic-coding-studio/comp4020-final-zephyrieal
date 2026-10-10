@@ -19,10 +19,17 @@ Don't add a conventional game mechanic just because games normally have one.
 
 ## Never add without stopping to discuss it first
 
-XP, levels, leaderboards, currency, shops, loot, daily rewards, streaks,
-combat, private property, individual guinea pig ownership, social-media feeds,
-likes, follower counts, mandatory accounts, complex inventories. If a feature
-seems to need one of these, the feature is probably wrong, not the rule.
+XP, levels, leaderboards, loot, daily rewards, streaks, combat, private
+property, individual guinea pig ownership, social-media feeds, likes, follower
+counts, mandatory accounts, complex inventories. If a feature seems to need one
+of these, the feature is probably wrong, not the rule.
+
+**Exception, discussed and approved 2026-10-10:** individual Care Points
+(earned per visitor by feeding, server-authoritative, tracked via the existing
+anonymous `visitor` cookie) and a small furniture shop that spends them. Care
+Points are a personal tally of one visitor's own contribution, not a tradeable
+currency; once placed, furniture is nobody's exclusive property — no
+leaderboard, loot, streak, or XP system rides along with it.
 
 ## Guinea pigs are inhabitants, not pets
 
@@ -54,6 +61,10 @@ Prefer interacting with the world over menus. Avoid dashboard-style UI and
 avoid exposing raw stats (no "Bean happiness: 72/100") --- communicate through
 behaviour instead (Bean hides, Bean approaches, Bean sleeps nearby). The core
 experience should be understandable without a tutorial modal.
+
+Exception: a visitor's own Care Points balance may be shown as a plain number
+--- it's the one stat that's actually about the visitor, not the guinea pig,
+and the shop can't work without it.
 
 ## Persistence
 
