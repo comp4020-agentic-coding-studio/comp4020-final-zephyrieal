@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { marked } from "marked";
 import { db } from "./db.ts";
+import { attachRealtime, broadcast, sendToVisitor } from "./realtime.ts";
+import {
+  earnCarePoints,
+  getBalance,
+  getFurniture,
+  placeFurniture,
+  FEED_REWARD,
+} from "./furniture.ts";
 
 declare global {
   namespace Express {
@@ -70,23 +78,74 @@ function getFlowers(): Flower[] {
 // the sanctuary remembers all of it. Everything else in the full design
 // (other guinea pigs, gestures, construction, more than one visitor at once)
 // waits for later weeks --- this is proof of life, not the finished app.
-app.get("/api/state", (_req: Request, res: Response) => {
+app.get("/api/state", (req: Request, res: Response) => {
   const guineaPig = getPotato();
   const flowers = getFlowers();
+  const furniture = getFurniture(db);
+  const carePoints = getBalance(db, req.visitorId);
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
-  res.json({ guineaPig, flowers, recentVisits });
+  res.json({ guineaPig, flowers, furniture, carePoints, recentVisits });
 });
 
+// Feeding earns Care Points (CLAUDE.md's discussed exception) alongside the
+// existing feed-count update. requestId defaults to a fresh id so the
+// existing no-body call this route already supported keeps working; a client
+// that wants a feed to be retry-safe can supply its own.
 app.post("/api/feed", (req: Request, res: Response) => {
+  const { requestId } = (req.body ?? {}) as { requestId?: unknown };
+  const id = typeof requestId === "string" && requestId.length > 0 ? requestId : randomUUID();
+
   db.prepare(
     "UPDATE guinea_pigs SET feed_count = feed_count + 1, last_fed_at = datetime('now') WHERE id = 'potato'",
   ).run();
   db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, 'fed potato')").run(
     req.visitorId,
   );
-  res.json({ guineaPig: getPotato() });
+  const { balance } = earnCarePoints(db, req.visitorId, FEED_REWARD, "fed potato", id);
+
+  sendToVisitor(req.visitorId, { type: "balance-updated", balance });
+  res.json({ guineaPig: getPotato(), balance });
+});
+
+// Places a piece of furniture in the shared house, spending Care Points. The
+// whole check (balance, tile validity) and commit happens inside
+// placeFurniture as one atomic, synchronous transaction --- see
+// src/server/furniture.ts and docs/decisions/0001-concurrent-furniture-placement.md
+// for why that's what actually makes concurrent placement safe.
+app.post("/api/furniture/place", (req: Request, res: Response) => {
+  const { kind, tileX, tileY, requestId } = req.body as {
+    kind?: unknown;
+    tileX?: unknown;
+    tileY?: unknown;
+    requestId?: unknown;
+  };
+  if (
+    typeof kind !== "string" ||
+    typeof tileX !== "number" ||
+    typeof tileY !== "number" ||
+    !Number.isInteger(tileX) ||
+    !Number.isInteger(tileY) ||
+    typeof requestId !== "string" ||
+    requestId.length === 0
+  ) {
+    res.status(400).json({
+      ok: false,
+      reason: "kind (string), tileX/tileY (integers) and requestId (string) are required",
+    });
+    return;
+  }
+
+  const result = placeFurniture(db, req.visitorId, kind, tileX, tileY, requestId);
+  if (!result.ok) {
+    res.status(409).json(result);
+    return;
+  }
+
+  res.json(result);
+  broadcast({ type: "furniture-placed", furniture: result.furniture });
+  sendToVisitor(req.visitorId, { type: "balance-updated", balance: result.balance });
 });
 
 // A flower is planted at a position in the meadow and stays there for every
@@ -125,7 +184,7 @@ app.get("/readme/", (_req: Request, res: Response) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Guinea Pig Sanctuary — README</title>
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/readme.css" />
   </head>
   <body>
     <main class="readme">${html}</main>
@@ -134,6 +193,7 @@ app.get("/readme/", (_req: Request, res: Response) => {
 });
 
 const port = Number(process.env.PORT ?? 8080);
-app.listen(port, "0.0.0.0", () => {
+const httpServer = app.listen(port, "0.0.0.0", () => {
   console.log(`Guinea Pig Sanctuary listening on :${port}`);
 });
+attachRealtime(httpServer);

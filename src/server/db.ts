@@ -43,6 +43,49 @@ db.exec(`
   );
 `);
 
+// Care Points are an append-only ledger (same "trace" philosophy as `visits`
+// and `flowers`), not a mutable counter column: a visitor's balance is
+// SUM(delta), which makes the request_id idempotency guard sufficient on its
+// own --- there's no separate "apply the delta" step that could run twice.
+// See docs/decisions/0001-concurrent-furniture-placement.md.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS care_point_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    visitor_id TEXT NOT NULL,
+    delta INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    request_id TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_care_point_transactions_visitor
+  ON care_point_transactions (visitor_id);
+`);
+
+// Furniture lives in the one shared guinea-pig house (see
+// src/server/furniture.ts for the tile grid and catalog). placed_by is
+// provenance only, like flowers.planted_by --- nobody gets exclusive rights
+// over a piece once it exists (CLAUDE.md, "nobody owns anything"). request_id
+// is the idempotency guard that makes a retried purchase a no-op instead of a
+// double charge.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS furniture (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    tile_x INTEGER NOT NULL,
+    tile_y INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    placed_by TEXT NOT NULL,
+    placed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    request_id TEXT NOT NULL UNIQUE
+  );
+`);
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_furniture_tile ON furniture (tile_x, tile_y);
+`);
+
 // Potato is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.
