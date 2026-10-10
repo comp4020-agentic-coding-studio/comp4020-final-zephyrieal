@@ -13,7 +13,7 @@ body {
 }
 
 main {
-  max-width: 40rem;
+  max-width: 46rem; /* wide enough for the 640px-wide game canvas plus padding */
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 }

@@ -11,6 +11,7 @@ import {
   type FurnitureKind,
   type FurnitureRow,
 } from "../../../server/furniture.ts";
+import { GAME_WIDTH, GAME_HEIGHT, HOUSE_ORIGIN_X, HOUSE_ORIGIN_Y } from "../layout.ts";
 
 // Grid-snapped placement, integer tile coordinates --- a different system
 // from OutdoorScene's free percent-space, deliberately not unified (see the
@@ -50,8 +51,8 @@ export class IndoorScene extends Phaser.Scene {
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       this.previewTile = {
-        x: Math.floor(pointer.x / TILE_SIZE),
-        y: Math.floor(pointer.y / TILE_SIZE),
+        x: Math.floor((pointer.x - HOUSE_ORIGIN_X) / TILE_SIZE),
+        y: Math.floor((pointer.y - HOUSE_ORIGIN_Y) / TILE_SIZE),
       };
       this.updatePreview();
     });
@@ -81,7 +82,11 @@ export class IndoorScene extends Phaser.Scene {
       for (let y = 0; y < HOUSE_HEIGHT; y++) {
         const blocked = BLOCKED_TILES.has(`${x},${y}`);
         this.add
-          .image(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, blocked ? "tile-wall" : "tile-floor")
+          .image(
+            HOUSE_ORIGIN_X + x * TILE_SIZE + TILE_SIZE / 2,
+            HOUSE_ORIGIN_Y + y * TILE_SIZE + TILE_SIZE / 2,
+            blocked ? "tile-wall" : "tile-floor",
+          )
           .setDepth(-1);
       }
     }
@@ -112,7 +117,11 @@ export class IndoorScene extends Phaser.Scene {
     const def = FURNITURE_CATALOG[kind];
 
     this.preview = this.add
-      .image(x * TILE_SIZE + (def.width * TILE_SIZE) / 2, y * TILE_SIZE + (def.height * TILE_SIZE) / 2, `furniture-${kind}`)
+      .image(
+        HOUSE_ORIGIN_X + x * TILE_SIZE + (def.width * TILE_SIZE) / 2,
+        HOUSE_ORIGIN_Y + y * TILE_SIZE + (def.height * TILE_SIZE) / 2,
+        `furniture-${kind}`,
+      )
       .setAlpha(0.6)
       .setTint(check.ok ? 0x88ff88 : 0xff8888);
   }
@@ -137,7 +146,7 @@ export class IndoorScene extends Phaser.Scene {
       return;
     }
     this.message = this.add
-      .text(HOUSE_WIDTH * TILE_SIZE * 0.5, HOUSE_HEIGHT * TILE_SIZE - 16, result.reason ?? "that didn't work", {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 16, result.reason ?? "that didn't work", {
         fontSize: "12px",
         color: "#ffffff",
         backgroundColor: "#a04040",
@@ -151,8 +160,8 @@ export class IndoorScene extends Phaser.Scene {
     for (const sprite of this.furnitureSprites) sprite.destroy();
     this.furnitureSprites = sanctuaryState.furniture.map((row: FurnitureRow) =>
       this.add.image(
-        row.tile_x * TILE_SIZE + (row.width * TILE_SIZE) / 2,
-        row.tile_y * TILE_SIZE + (row.height * TILE_SIZE) / 2,
+        HOUSE_ORIGIN_X + row.tile_x * TILE_SIZE + (row.width * TILE_SIZE) / 2,
+        HOUSE_ORIGIN_Y + row.tile_y * TILE_SIZE + (row.height * TILE_SIZE) / 2,
         `furniture-${row.kind}`,
       ),
     );

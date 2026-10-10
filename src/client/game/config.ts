@@ -1,11 +1,8 @@
 import Phaser from "phaser";
-import { TILE_SIZE, HOUSE_WIDTH, HOUSE_HEIGHT } from "../../server/furniture.ts";
+import { GAME_WIDTH, GAME_HEIGHT } from "./layout.ts";
 import { BootScene } from "./scenes/BootScene.ts";
 import { OutdoorScene } from "./scenes/OutdoorScene.ts";
 import { IndoorScene } from "./scenes/IndoorScene.ts";
-
-export const GAME_WIDTH = TILE_SIZE * HOUSE_WIDTH;
-export const GAME_HEIGHT = TILE_SIZE * HOUSE_HEIGHT;
 
 export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
   return {
