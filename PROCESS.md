@@ -57,3 +57,81 @@ week after's work.
      template's own instructions show: [`<sha>`](.../commit/<sha>).
      `pnpm check:evidence` checks that every commit you cite here actually
      exists in the repo. -->
+
+## Crit 9: real-time, Care Points, and a furniture shop
+
+### Scope decision: Care Points + furniture shop, on a new stack
+
+Crit 9 needed real-time and one documented multi-user decision. I was given
+two candidate directions and chose the larger one: individual Care Points
+(earned by feeding) spendable on a small furniture shop inside a shared
+guinea-pig house, on a React + Vite + Phaser 3 client instead of the
+crit-8 vanilla-JS one.
+
+Both the economy and the stack change are deliberate departures from what
+`CLAUDE.md` and crit 8's own stack decision had settled on, so both needed a
+discussion before starting:
+
+- `CLAUDE.md` originally banned currency and shops outright. Care Points are
+  a personal tally of a visitor's own contribution (earned by feeding), not a
+  tradeable currency between visitors, and furniture, once placed, is still
+  nobody's exclusive property --- the carve-out in `CLAUDE.md` records exactly
+  this narrowing, not a reversal of "nobody owns anything."
+- `CLAUDE.md`'s Interface section banned raw stat displays. A Care Points
+  number is the one exception now carved out --- it's about the visitor, not
+  about Potato, and the shop can't function without showing it.
+- Crit 8 chose no build step specifically so the server wouldn't need one.
+  That's still true: `src/server/` still runs straight from TypeScript
+  source. Only the *client* gained a build step (`vite build`), kept in its
+  own Dockerfile stage so the deployed server image still never installs
+  React, Vite or Phaser --- only `express`, `marked` and the one new runtime
+  dependency, `ws`.
+
+This was chosen with the cutoff about two days out, which is real risk for a
+migration this size; see the reflection for why it still seemed worth it.
+
+### Real-time: WebSocket, push-only
+
+Mutations (`/api/feed`, `/api/plant`, the new `/api/furniture/place`) stay on
+HTTP exactly as crit 8 left them --- the server-authoritative, intent-based
+shape chosen then was specifically meant to carry this without a rewrite, and
+it did. WebSocket (`ws`, `src/server/realtime.ts`) is used only for
+server-to-client broadcast: a successful HTTP mutation is followed by a push
+to everyone (furniture placed) or to just the requester (their own balance),
+and a reconnecting client simply re-fetches `/api/state` on every socket
+`open`, including the first one --- so "receive the latest layout without
+reloading" needed no special reconnection protocol, just reusing the same
+hydration path the initial page load already had.
+
+### The one documented multi-user decision
+
+See `docs/decisions/0001-concurrent-furniture-placement.md`: two visitors
+placing overlapping furniture at once is resolved by the fact that the whole
+check-and-commit is one synchronous function with no `await` in it, so
+Node's single-threaded event loop alone decides which request's handler runs
+first. No application-level locking was added; the transaction wrapper is
+there only for atomicity against a crash mid-write, not for the race itself.
+
+### Known limitation
+
+Care Points balances and furniture placements are attributed to the same
+anonymous `visitor=<uuid>` cookie the app already used for flowers and the
+feed count. Clearing cookies or switching browsers starts a fresh,
+zero-balance identity --- this isn't new (flowers already worked this way),
+but it's worth naming now that there's something a visitor might mind losing.
+
+Furniture is permanent and the house is a small, fixed 10x8 tile grid ---
+unlike the outdoor meadow (an effectively unbounded percent-space), the house
+has a real, finite capacity and nothing ever frees a tile once it's used.
+That's accepted as part of "a small, reliable shared world, not a complete
+game," not hidden, but it does mean the house can eventually fill up for
+good.
+
+### What's still manual
+
+Scenario 5 of the brief (furniture and balances survive a server restart) is
+checked by hand, not by `pnpm check` --- the spec harness (`spec/global-
+setup.ts`) and CI's own Docker-based check job both assume one
+already-running instance for the whole suite, and restarting it mid-run would
+fight that model rather than test anything new. The manual procedure is in
+`spec/MANUAL.md`.
