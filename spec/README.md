@@ -30,3 +30,25 @@ can judge; those are left to the crit and the marker.
 At a crit, a green `check` job is half the shipped mark, but it's never the
 judgement of the work: your tutor checks what you deployed against the published
 spec.
+
+## Crit 9: real-time, Care Points, furniture
+
+`care-points.test.ts`, `furniture-placement.test.ts`,
+`furniture-concurrency.test.ts` and `reconnection.test.ts` cover the crit-9
+scenarios over HTTP and WebSocket, reusing `ws-client.ts` (a small helper ---
+Node's global `WebSocket` can't set a custom `Cookie` header on the
+handshake, which these tests need to simulate a second visitor). Each
+furniture test uses its own reserved region of the house's tile grid so they
+don't collide with each other on the one shared running instance.
+
+One crit-9 scenario --- furniture and Care Points surviving a server restart
+--- is checked manually instead of automated; see `MANUAL.md` for why and the
+procedure.
+
+Furniture is permanent, same as flowers, and the house is a small fixed 10x8
+tile grid --- so unlike the flowers tests (an effectively unbounded meadow),
+running `pnpm check` many times in a row against the *same* local
+`data/sanctuary.db` will eventually leave no free tile for these tests to use
+(`findFreeTile` throws "the house is full" rather than failing silently).
+CI never sees this (`--tmpfs /data` starts empty every run); locally, delete
+`data/sanctuary.db` and restart the server for a clean slate.
