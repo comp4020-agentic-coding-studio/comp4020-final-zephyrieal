@@ -14,7 +14,10 @@
     "noEmit": true,
     "skipLibCheck": true,
     "moduleDetection": "force",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    // For src/client's .tsx (React + Phaser); has no effect on the plain
+    // .ts server/spec code elsewhere in `include`.
+    "jsx": "react-jsx"
   },
   "include": ["*.ts", "spec", "scripts", "src"]
 }

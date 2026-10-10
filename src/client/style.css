@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  --meadow: #eaf4e6;
+  --ink: #2c3a27;
+  --accent: #5a8f4e;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: var(--ink);
+  background: #fdfaf4;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.intro {
+  line-height: 1.5;
+}
+
+.meadow-wrap {
+  background: var(--meadow);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.game-container {
+  margin-top: 1rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 2px dashed #9ab98c;
+  display: inline-block;
+  line-height: 0;
+}
+
+/* Phaser's own <canvas>, nearest-neighbour scaling for a crisp pixel-art look
+   at whatever CSS size the canvas ends up displayed at. */
+.game-container canvas {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.guinea-pig {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.care-points {
+  margin: 0;
+  font-weight: 600;
+}
+
+.rejection {
+  color: #7a2424;
+  background: #fbe4e4;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0;
+}
+
+.shop-panel {
+  margin-top: 1rem;
+}
+
+.shop-hint {
+  font-size: 0.9rem;
+  color: #3f4f39;
+  margin: 0 0 0.5rem;
+}
+
+.shop-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  font: inherit;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.footer a {
+  color: var(--accent);
+}

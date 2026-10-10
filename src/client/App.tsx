@@ -1,0 +1,90 @@
+import { useState } from "react";
+import { PhaserGame } from "./game/PhaserGame.tsx";
+import { EventBus } from "./game/eventBus.ts";
+import { CarePointsBadge } from "./ui/CarePointsBadge.tsx";
+import { ShopPanel } from "./ui/ShopPanel.tsx";
+import { useSanctuary } from "./state/useSanctuary.ts";
+
+function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
+  if (!guineaPig) return "Loading the sanctuary's memory…";
+  if (guineaPig.feed_count === 0) return "Nobody has fed Potato yet. Be the first.";
+  const lastFed = new Date(`${guineaPig.last_fed_at}Z`).toLocaleString();
+  return (
+    `Potato has been fed ${guineaPig.feed_count} time` +
+    `${guineaPig.feed_count === 1 ? "" : "s"} by visitors to this sanctuary. ` +
+    `Last fed ${lastFed}.`
+  );
+}
+
+export default function App() {
+  const { guineaPig, carePoints, flowers, rejection, feed } = useSanctuary();
+  const [view, setView] = useState<"outdoor" | "indoor">("outdoor");
+  const [feeding, setFeeding] = useState(false);
+
+  function toggleView() {
+    const next = view === "outdoor" ? "indoor" : "outdoor";
+    setView(next);
+    EventBus.emit("switch-scene", next);
+  }
+
+  return (
+    <main>
+      <h1>Guinea Pig Sanctuary</h1>
+      <p className="intro">
+        A small, shared meadow and the house just behind it. Right now there's
+        one guinea pig here — <strong>Potato</strong> — and whatever you leave
+        behind, outside or in, stays for the next visitor.
+      </p>
+
+      <section className="meadow-wrap">
+        <p className="guinea-pig">
+          🐹 <span>{guineaPig?.name ?? "Potato"}</span> is in the sanctuary,
+          looking <span>{guineaPig?.personality ?? "curious"}</span>.
+        </p>
+        <p aria-live="polite">{traceText(guineaPig)}</p>
+
+        <div className="toolbar">
+          <button
+            type="button"
+            disabled={feeding}
+            onClick={async () => {
+              setFeeding(true);
+              try {
+                await feed();
+              } finally {
+                setFeeding(false);
+              }
+            }}
+          >
+            Feed Potato
+          </button>
+          <CarePointsBadge value={carePoints} />
+          <button type="button" onClick={toggleView}>
+            {view === "outdoor" ? "Go inside" : "Go back outside"}
+          </button>
+          {view === "outdoor" && (
+            <button type="button" onClick={() => EventBus.emit("plant-random")}>
+              Plant a flower
+            </button>
+          )}
+        </div>
+
+        <PhaserGame />
+
+        {view === "indoor" && <ShopPanel carePoints={carePoints} />}
+
+        {rejection && <p className="rejection" role="alert">{rejection}</p>}
+
+        <p aria-live="polite">
+          {flowers.length === 0
+            ? "No one has planted anything here yet. Click the meadow to plant a flower."
+            : `${flowers.length} flower${flowers.length === 1 ? "" : "s"} planted by visitors so far.`}
+        </p>
+      </section>
+
+      <p className="footer">
+        <a href="/readme/">What "good" means for this place →</a>
+      </p>
+    </main>
+  );
+}
