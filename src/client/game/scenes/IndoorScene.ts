@@ -113,7 +113,10 @@ export class IndoorScene extends Phaser.Scene {
         // the menu happens to sit over.
         if (this.activeOp.phase === "moving" && !this.isPointerOverMenu(pointer)) {
           this.activeOp.draftTile = tile;
-          this.renderEditGhost();
+          // The whole menu (panel, icons, selection outline), not just the
+          // ghost --- Save has to stay reachable near wherever the piece
+          // actually is while dragging, not back where "Move" was clicked.
+          this.renderMenu();
         }
         return;
       }

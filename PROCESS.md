@@ -184,20 +184,38 @@ owns anything," not a per-visitor system CLAUDE.md's rule is aimed at. No
 new exception was added to CLAUDE.md because nothing here bends an
 existing rule.
 
-### Known limitation
+### A second real bug, reported after shipping: the menu didn't follow a move
 
-The contextual menu's position is fixed to wherever it opened for the
-duration of a move --- dragging the ghost preview to a new tile doesn't
-drag the menu with it, so Save has to be clicked back where the menu
-already is. This came out of a real bug caught while testing by hand: the
-menu is destroyed and rebuilt on nearly every click, so tracking "is the
-cursor over the menu" with `pointerover`/`pointerout` got stuck once that
-happened mid-hover, and crossing the menu on the way to Save was silently
-dragging the piece to whatever tile the menu sat over. Fixed by checking
-the current panel's bounds directly on every pointer move instead of
-trusting hover events across a destroy/rebuild. Leaving the menu fixed
-(rather than making it follow the drag) was the simpler fix on top of that
-and reads as an acceptable tradeoff, not a bug.
+Originally the menu stayed fixed wherever it opened for the whole duration
+of a move --- dragging the ghost preview to a new tile didn't drag the menu
+with it, so Save stayed back at the *original* spot. Noted at the time as
+an "acceptable tradeoff," but a user report ("once you move it to another
+place, there's no confirmation") showed it reads as a real bug in
+practice: drag a piece across the house and the only way to confirm is
+invisible, back where you started, which looks exactly like "there's no
+way to confirm this." Fixed by having the menu (panel, icons and selection
+outline, not just the ghost) re-render at the current draft tile on every
+pointer move during a drag, the same way it already did on Rotate. The
+existing "is the cursor over the menu" bounds check (see below) still
+guards this --- it now matters more, since the menu is usually right next
+to the cursor while dragging, not just occasionally crossed on the way to
+a fixed Save button.
+
+Verified by hand after the fix: moved a piece across the house, confirmed
+the menu and Save button visibly follow the drag, and confirmed Save at
+the new position actually commits the new tile (`version` incremented,
+position persisted) --- a bare coordinate click no longer does anything on
+its own, Save is still required.
+
+### Known limitation (unrelated to the above)
+
+The menu is destroyed and rebuilt on nearly every click, which can happen
+while the cursor sits right on top of it --- tracking "is the cursor over
+the menu" with `pointerover`/`pointerout` got stuck once that happened
+mid-hover, and crossing the menu on the way to Save was silently dragging
+the piece to whatever tile the menu sat over. Fixed by checking the
+current panel's bounds directly on every pointer move instead of trusting
+hover events across a destroy/rebuild.
 
 ### What's still manual
 
