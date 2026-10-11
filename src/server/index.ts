@@ -10,7 +10,12 @@ import {
   earnCarePoints,
   getBalance,
   getFurniture,
+  getStoredFurniture,
   placeFurniture,
+  editFurniture,
+  storeFurniture,
+  retrieveFurniture,
+  type Rotation,
   FEED_REWARD,
 } from "./furniture.ts";
 
@@ -82,11 +87,12 @@ app.get("/api/state", (req: Request, res: Response) => {
   const guineaPig = getPotato();
   const flowers = getFlowers();
   const furniture = getFurniture(db);
+  const storedFurniture = getStoredFurniture(db);
   const carePoints = getBalance(db, req.visitorId);
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
-  res.json({ guineaPig, flowers, furniture, carePoints, recentVisits });
+  res.json({ guineaPig, flowers, furniture, storedFurniture, carePoints, recentVisits });
 });
 
 // Feeding earns Care Points (CLAUDE.md's discussed exception) alongside the
@@ -146,6 +152,130 @@ app.post("/api/furniture/place", (req: Request, res: Response) => {
   res.json(result);
   broadcast({ type: "furniture-placed", furniture: result.furniture });
   sendToVisitor(req.visitorId, { type: "balance-updated", balance: result.balance });
+});
+
+function isRotation(value: unknown): value is Rotation {
+  return value === 0 || value === 90 || value === 180 || value === 270;
+}
+
+// Moves and/or rotates an existing piece --- free, and never touches Care
+// Points. The visitor's menu commits both together in one Save, so this is
+// one call; the route still broadcasts the two events the brief asks for
+// since other clients handle them identically anyway (merge the row in).
+app.post("/api/furniture/edit", (req: Request, res: Response) => {
+  const { id, tileX, tileY, rotation, version, requestId } = req.body as {
+    id?: unknown;
+    tileX?: unknown;
+    tileY?: unknown;
+    rotation?: unknown;
+    version?: unknown;
+    requestId?: unknown;
+  };
+  if (
+    typeof id !== "number" ||
+    !Number.isInteger(id) ||
+    typeof tileX !== "number" ||
+    !Number.isInteger(tileX) ||
+    typeof tileY !== "number" ||
+    !Number.isInteger(tileY) ||
+    !isRotation(rotation) ||
+    typeof version !== "number" ||
+    !Number.isInteger(version) ||
+    typeof requestId !== "string" ||
+    requestId.length === 0
+  ) {
+    res.status(400).json({
+      ok: false,
+      reason:
+        "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required",
+    });
+    return;
+  }
+
+  const result = editFurniture(db, id, tileX, tileY, rotation, version, requestId);
+  if (!result.ok) {
+    res.status(409).json(result);
+    return;
+  }
+
+  res.json(result);
+  broadcast({ type: "furniture-moved", furniture: result.furniture });
+  broadcast({ type: "furniture-rotated", furniture: result.furniture });
+});
+
+// Stores a placed piece into the shared pool --- it stays in the database,
+// it just stops occupying a tile. Never refunds, never costs anything.
+app.post("/api/furniture/store", (req: Request, res: Response) => {
+  const { id, version, requestId } = req.body as {
+    id?: unknown;
+    version?: unknown;
+    requestId?: unknown;
+  };
+  if (
+    typeof id !== "number" ||
+    !Number.isInteger(id) ||
+    typeof version !== "number" ||
+    !Number.isInteger(version) ||
+    typeof requestId !== "string" ||
+    requestId.length === 0
+  ) {
+    res.status(400).json({
+      ok: false,
+      reason: "id, version (integers) and requestId (string) are required",
+    });
+    return;
+  }
+
+  const result = storeFurniture(db, id, version, requestId);
+  if (!result.ok) {
+    res.status(409).json(result);
+    return;
+  }
+
+  res.json(result);
+  broadcast({ type: "furniture-stored", furniture: result.furniture });
+});
+
+// Retrieves a stored piece back onto the floor --- free for whoever retrieves
+// it, same placement validation as a fresh purchase minus the cost check.
+app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
+  const { id, tileX, tileY, rotation, version, requestId } = req.body as {
+    id?: unknown;
+    tileX?: unknown;
+    tileY?: unknown;
+    rotation?: unknown;
+    version?: unknown;
+    requestId?: unknown;
+  };
+  if (
+    typeof id !== "number" ||
+    !Number.isInteger(id) ||
+    typeof tileX !== "number" ||
+    !Number.isInteger(tileX) ||
+    typeof tileY !== "number" ||
+    !Number.isInteger(tileY) ||
+    !isRotation(rotation) ||
+    typeof version !== "number" ||
+    !Number.isInteger(version) ||
+    typeof requestId !== "string" ||
+    requestId.length === 0
+  ) {
+    res.status(400).json({
+      ok: false,
+      reason:
+        "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required",
+    });
+    return;
+  }
+
+  const result = retrieveFurniture(db, id, tileX, tileY, rotation, version, requestId);
+  if (!result.ok) {
+    res.status(409).json(result);
+    return;
+  }
+
+  res.json(result);
+  broadcast({ type: "furniture-retrieved", furniture: result.furniture });
 });
 
 // A flower is planted at a position in the meadow and stays there for every
