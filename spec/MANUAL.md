@@ -21,3 +21,31 @@ that model. This is checked by hand instead.
 
 Record the result (pass/fail, date) in `PROCESS.md`'s crit-9 section before
 the crit.
+
+## Furniture editing and shared storage: UI-only scenarios
+
+`spec/furniture-edit.test.ts` and `spec/furniture-storage.test.ts` cover
+everything the server does. The harness is HTTP+WS against a running
+server --- it never renders Phaser or touches a DOM, so what the *menu
+itself* looks and feels like has to be checked by hand, the same carve-out
+as scenario 5 above.
+
+1. Click a piece of furniture in the house. A small menu (rotate, move,
+   save, store, cancel) appears near it, stays within the visible game
+   area even when the piece is near an edge, and the piece gets a yellow
+   selection outline.
+2. Hovering each icon shows a short tooltip naming the action.
+3. Clicking Rotate spins the piece in place (no server call until Save);
+   clicking Move lets the ghost preview follow the cursor, tinted green on
+   a valid tile and red on an invalid one, while the piece can still be
+   rotated mid-move.
+4. Pressing Escape, or clicking Cancel, while editing reverts to the
+   piece's last-saved position and rotation with no request sent.
+5. Clicking Store asks for confirmation in the same menu before anything
+   is sent; clicking the confirm option is the only way it actually stores.
+6. Extend scenario 5 above: a piece that's been moved, rotated, or stored
+   (not just a freshly-bought one) keeps its new position/rotation/status
+   across a server restart.
+
+Record the result (pass/fail, date) in `PROCESS.md`'s furniture-editing
+section before relying on this feature at a crit.

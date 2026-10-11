@@ -135,3 +135,78 @@ setup.ts`) and CI's own Docker-based check job both assume one
 already-running instance for the whole suite, and restarting it mid-run would
 fight that model rather than test anything new. The manual procedure is in
 `spec/MANUAL.md`.
+
+## Furniture editing and shared storage
+
+Standalone feature work on the shared final-project repo, not tied to a
+specific crit's own brief: visitors can now click an existing piece of
+furniture to move or rotate it for free, or store it into a pool any other
+visitor can retrieve from for free. This section records the decisions,
+following the same "scope decision, what's deferred, known limitations"
+shape as the crit-9 section above.
+
+### Combining move and rotate into one Save
+
+The brief lists "furniture moved" and "furniture rotated" as separate
+real-time events. The menu itself asks for one Save after previewing both
+locally, so the server commits them together as one versioned transaction
+(see `docs/decisions/0002-furniture-editing-concurrency.md`) and the route
+broadcasts both event types off that one write. Two broadcasts, one
+mutation --- `useSanctuary`'s handler for both is identical anyway (merge
+the row in by id), so there's no behavioural difference from treating them
+as two separate operations, just one less transaction.
+
+### A sentinel position instead of a nullable one
+
+Stored furniture's position is encoded as `tile_x = tile_y = -1`, not
+`NULL`. SQLite can add the new `rotation`/`status`/`version` columns to the
+existing `furniture` table with a guarded `ALTER TABLE`, but it can't drop
+the existing `NOT NULL` on `tile_x`/`tile_y` without rebuilding the whole
+table --- real risk to the one Fly volume for no semantic gain, since
+`status` already fully gates whether position means anything. Every read
+path either filters `WHERE status = 'placed'` or doesn't look at position
+for a stored row at all.
+
+### Provenance, not custody
+
+`placed_by` and `placed_at` are never touched by moving, rotating, storing,
+or retrieving a piece --- they record who originally placed it, the same
+"trace, not ownership" idiom as `flowers.planted_by`. Retrieving a stored
+piece does not reassign it to whoever retrieved it; CLAUDE.md's "nobody
+owns anything" rules that out directly.
+
+### Why shared storage isn't a banned "complex inventory"
+
+CLAUDE.md bans complex inventories. Shared storage is one flat, shared
+pool with no categories, slots, or capacity beyond the furniture table
+itself, and anyone can take from it --- it's a direct extension of "nobody
+owns anything," not a per-visitor system CLAUDE.md's rule is aimed at. No
+new exception was added to CLAUDE.md because nothing here bends an
+existing rule.
+
+### Known limitation
+
+The contextual menu's position is fixed to wherever it opened for the
+duration of a move --- dragging the ghost preview to a new tile doesn't
+drag the menu with it, so Save has to be clicked back where the menu
+already is. This came out of a real bug caught while testing by hand: the
+menu is destroyed and rebuilt on nearly every click, so tracking "is the
+cursor over the menu" with `pointerover`/`pointerout` got stuck once that
+happened mid-hover, and crossing the menu on the way to Save was silently
+dragging the piece to whatever tile the menu sat over. Fixed by checking
+the current panel's bounds directly on every pointer move instead of
+trusting hover events across a destroy/rebuild. Leaving the menu fixed
+(rather than making it follow the drag) was the simpler fix on top of that
+and reads as an acceptable tradeoff, not a bug.
+
+### What's still manual
+
+The Phaser-rendered menu itself (appearance, positioning, tooltips, the
+in-menu store confirmation, Escape-to-cancel) can't be exercised by
+`pnpm check` --- the harness is HTTP+WS against a running server with no
+Phaser/DOM rendering at all. These are checked by hand; see
+`spec/MANUAL.md`.
+
+Manually verified 2026-10-11: a moved-and-rotated piece and a stored piece
+both kept their new position/rotation/status across a server restart
+(`pnpm start`, stop, `pnpm start` again, re-fetch `/api/state`) --- pass.
