@@ -98,6 +98,39 @@ main {
   padding: 0;
 }
 
+.storage-panel {
+  margin-top: 1rem;
+}
+
+.storage-hint {
+  font-size: 0.9rem;
+  color: #3f4f39;
+  margin: 0 0 0.5rem;
+}
+
+.storage-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.storage-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem 0.4rem 0.4rem;
+}
+
+.storage-item img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+}
+
 button {
   font: inherit;
   padding: 0.6rem 1.2rem;

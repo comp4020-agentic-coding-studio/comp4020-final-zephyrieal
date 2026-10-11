@@ -3,6 +3,7 @@ import { PhaserGame } from "./game/PhaserGame.tsx";
 import { EventBus } from "./game/eventBus.ts";
 import { CarePointsBadge } from "./ui/CarePointsBadge.tsx";
 import { ShopPanel } from "./ui/ShopPanel.tsx";
+import { StoragePanel } from "./ui/StoragePanel.tsx";
 import { useSanctuary } from "./state/useSanctuary.ts";
 
 function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
@@ -17,7 +18,7 @@ function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
 }
 
 export default function App() {
-  const { guineaPig, carePoints, flowers, rejection, feed } = useSanctuary();
+  const { guineaPig, carePoints, flowers, storedFurniture, rejection, feed } = useSanctuary();
   const [view, setView] = useState<"outdoor" | "indoor">("outdoor");
   const [feeding, setFeeding] = useState(false);
 
@@ -71,7 +72,12 @@ export default function App() {
 
         <PhaserGame />
 
-        {view === "indoor" && <ShopPanel carePoints={carePoints} />}
+        {view === "indoor" && (
+          <>
+            <ShopPanel carePoints={carePoints} />
+            <StoragePanel items={storedFurniture} />
+          </>
+        )}
 
         {rejection && <p className="rejection" role="alert">{rejection}</p>}
 
