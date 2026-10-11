@@ -130,11 +130,14 @@ export class IndoorScene extends Phaser.Scene {
         return;
       }
       if (this.activeOp?.mode === "edit") {
-        // Closes a menu that's just being looked at; a click elsewhere while
-        // actively moving or confirming a store is ignored on purpose ---
-        // those need an explicit button or Escape, not an accidental outside
-        // click, to avoid losing an in-progress edit.
+        // Closes a menu that's just being looked at. While actively dragging
+        // a move, a click on a valid tile confirms the move right there ---
+        // same as clicking Save --- so choosing the spot and clicking it is
+        // one action; a click on an invalid tile is ignored so the drag can
+        // continue. Confirming a store still needs its own explicit button,
+        // to avoid losing an in-progress edit to a stray click.
         if (this.activeOp.phase === "menu") this.closeEditMenu();
+        else if (this.activeOp.phase === "moving") this.tryConfirmMove();
         return;
       }
       this.confirmPlacement();
@@ -377,6 +380,23 @@ export class IndoorScene extends Phaser.Scene {
     const next = ROTATIONS[(ROTATIONS.indexOf(this.activeOp.draftRotation) + 1) % ROTATIONS.length];
     this.activeOp.draftRotation = next;
     this.renderMenu();
+  }
+
+  // Clicking a valid tile while dragging a move confirms it immediately,
+  // the same as clicking Save --- an invalid tile is ignored so the drag can
+  // continue rather than clicking do nothing with no feedback.
+  private tryConfirmMove() {
+    if (this.activeOp?.mode !== "edit" || this.activeOp.phase !== "moving") return;
+    const op = this.activeOp;
+    const check = isValidPlacement(
+      op.kind,
+      op.draftTile.x,
+      op.draftTile.y,
+      this.currentFootprint(op.id),
+      op.draftRotation,
+    );
+    if (!check.ok) return;
+    this.saveEdit();
   }
 
   private saveEdit() {

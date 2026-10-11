@@ -204,8 +204,36 @@ a fixed Save button.
 Verified by hand after the fix: moved a piece across the house, confirmed
 the menu and Save button visibly follow the drag, and confirmed Save at
 the new position actually commits the new tile (`version` incremented,
-position persisted) --- a bare coordinate click no longer does anything on
-its own, Save is still required.
+position persisted).
+
+### A third round of the same feedback: click the spot itself to confirm
+
+Even with the menu following the drag, a further report ("once the user
+chooses a spot to move to and it's valid, left clicking again should save
+the move") pointed at the same underlying friction from a different angle:
+needing a *second*, separate click on a small Save icon --- after already
+clicking once to place the ghost --- is an extra step most placement UIs
+don't ask for. Clicking the destination tile is already the natural
+"confirm this spot" gesture everywhere else in this scene (buying and
+retrieving both place on a single click); moving a piece was the one case
+that didn't.
+
+Fixed by treating a click on a *valid* tile during a move the same as
+clicking Save: the scene's own `pointerdown` handler now calls
+`tryConfirmMove()` while `phase === "moving"`, which re-checks
+`isValidPlacement` against the current draft tile and, only if it's still
+legal, calls the same `saveEdit()` the Save icon calls. A click on an
+occupied or out-of-bounds tile is ignored rather than rejected, so the drag
+simply continues --- consistent with the ghost's own red/green tint already
+telling the visitor whether a given spot would work. The Save icon (and
+Rotate, Store, Cancel) stay in the menu as before; clicking the spot is a
+faster path to the same action, not a replacement for it.
+
+Verified by hand: dragged a piece to an empty tile and clicked directly on
+it --- confirmed the move (version incremented, menu closed) with no
+separate Save click. Dragged the same piece onto an already-occupied tile
+and clicked it --- confirmed nothing happened (no version change, still in
+moving phase), since that click targeted an invalid spot.
 
 ### Known limitation (unrelated to the above)
 
