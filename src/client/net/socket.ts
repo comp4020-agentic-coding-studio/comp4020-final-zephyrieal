@@ -5,6 +5,10 @@
 // wakes it back up.
 export type RealtimeMessage =
   | { type: "furniture-placed"; furniture: unknown }
+  | { type: "furniture-moved"; furniture: unknown }
+  | { type: "furniture-rotated"; furniture: unknown }
+  | { type: "furniture-stored"; furniture: unknown }
+  | { type: "furniture-retrieved"; furniture: unknown }
   | { type: "balance-updated"; balance: number }
   | { type: "purchase-rejected"; reason: string };
 

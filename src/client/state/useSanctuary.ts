@@ -15,6 +15,7 @@ interface StateResponse {
   guineaPig: GuineaPig;
   flowers: FlowerRow[];
   furniture: FurnitureRow[];
+  storedFurniture: FurnitureRow[];
   carePoints: number;
 }
 
@@ -29,6 +30,7 @@ export function useSanctuary() {
   const [carePoints, setCarePoints] = useState(0);
   const [flowers, setFlowers] = useState<FlowerRow[]>([]);
   const [furniture, setFurniture] = useState<FurnitureRow[]>([]);
+  const [storedFurniture, setStoredFurniture] = useState<FurnitureRow[]>([]);
   const [rejection, setRejection] = useState<string | null>(null);
   const rejectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -44,6 +46,31 @@ export function useSanctuary() {
     EventBus.emit("furniture-updated");
   }
 
+  // Merges one row into the placed list by id --- the shape every buy, edit
+  // (move/rotate) and retrieve success, plus the matching WS broadcasts, all
+  // use to update what's on the floor.
+  function applyFurnitureRow(row: FurnitureRow) {
+    applyFurniture([...sanctuaryState.furniture.filter((f) => f.id !== row.id), row]);
+  }
+
+  function removeFurnitureRow(id: number) {
+    applyFurniture(sanctuaryState.furniture.filter((f) => f.id !== id));
+  }
+
+  function addStoredRow(row: FurnitureRow) {
+    setStoredFurniture((prev) => [...prev.filter((f) => f.id !== row.id), row]);
+  }
+
+  function removeStoredRow(id: number) {
+    setStoredFurniture((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function flashRejection(reason: string) {
+    setRejection(reason);
+    clearTimeout(rejectionTimer.current);
+    rejectionTimer.current = setTimeout(() => setRejection(null), 2500);
+  }
+
   async function loadState() {
     const res = await fetch("/api/state");
     const data = (await res.json()) as StateResponse;
@@ -51,6 +78,7 @@ export function useSanctuary() {
     setCarePoints(data.carePoints);
     applyFlowers(data.flowers);
     applyFurniture(data.furniture);
+    setStoredFurniture(data.storedFurniture);
   }
 
   async function feed() {
@@ -83,20 +111,90 @@ export function useSanctuary() {
     const data = await res.json();
     if (!res.ok || !data.ok) {
       EventBus.emit("placement-result", { ok: false, reason: data.reason });
-      setRejection(data.reason ?? "that didn't work");
-      clearTimeout(rejectionTimer.current);
-      rejectionTimer.current = setTimeout(() => setRejection(null), 2500);
+      flashRejection(data.reason ?? "that didn't work");
       return;
     }
     setCarePoints(data.balance);
-    // Read off the live singleton, not the `furniture` state variable ---
-    // this function is captured once (in the effect below, mount-only deps),
-    // so closing over React state here would go stale after the first call.
-    applyFurniture([
-      ...sanctuaryState.furniture.filter((f) => f.id !== data.furniture.id),
-      data.furniture,
-    ]);
+    applyFurnitureRow(data.furniture);
     EventBus.emit("placement-result", { ok: true });
+  }
+
+  // Moves and/or rotates an existing piece --- free, never touches Care
+  // Points. On a version conflict the server's `current` row is the fresh
+  // truth: apply it immediately so the scene's redraw and the visitor's
+  // retry both start from what's actually there now.
+  async function editFurniture(
+    id: number,
+    tileX: number,
+    tileY: number,
+    rotation: number,
+    version: number,
+    requestId: string,
+  ) {
+    const res = await fetch("/api/furniture/edit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, tileX, tileY, rotation, version, requestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      if (data.current) applyFurnitureRow(data.current);
+      EventBus.emit("furniture-edit-result", {
+        ok: false,
+        reason: data.reason,
+        current: data.current,
+      });
+      flashRejection(data.reason ?? "that didn't work");
+      return;
+    }
+    applyFurnitureRow(data.furniture);
+    EventBus.emit("furniture-edit-result", { ok: true, furniture: data.furniture });
+  }
+
+  async function storeFurniture(id: number, version: number, requestId: string) {
+    const res = await fetch("/api/furniture/store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, version, requestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      if (data.current) applyFurnitureRow(data.current);
+      EventBus.emit("store-result", { ok: false, reason: data.reason, current: data.current });
+      flashRejection(data.reason ?? "that didn't work");
+      return;
+    }
+    removeFurnitureRow(data.furniture.id);
+    addStoredRow(data.furniture);
+    EventBus.emit("store-result", { ok: true });
+  }
+
+  // Free for whoever retrieves it. A rejection here almost always means
+  // someone else just took it --- either way it's no longer in storage, so
+  // the local list drops it regardless of why the request failed.
+  async function retrieveFurniture(
+    id: number,
+    tileX: number,
+    tileY: number,
+    rotation: number,
+    version: number,
+    requestId: string,
+  ) {
+    const res = await fetch("/api/furniture/retrieve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, tileX, tileY, rotation, version, requestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      removeStoredRow(id);
+      EventBus.emit("retrieve-result", { ok: false, reason: data.reason });
+      flashRejection(data.reason ?? "that didn't work");
+      return;
+    }
+    removeStoredRow(data.furniture.id);
+    applyFurnitureRow(data.furniture);
+    EventBus.emit("retrieve-result", { ok: true, furniture: data.furniture });
   }
 
   useEffect(() => {
@@ -113,21 +211,70 @@ export function useSanctuary() {
       tileY: number;
       requestId: string;
     }) => void buyFurniture(kind, tileX, tileY, requestId);
+    const onAttemptFurnitureEdit = ({
+      id,
+      tileX,
+      tileY,
+      rotation,
+      version,
+      requestId,
+    }: {
+      id: number;
+      tileX: number;
+      tileY: number;
+      rotation: number;
+      version: number;
+      requestId: string;
+    }) => void editFurniture(id, tileX, tileY, rotation, version, requestId);
+    const onAttemptStoreFurniture = ({
+      id,
+      version,
+      requestId,
+    }: {
+      id: number;
+      version: number;
+      requestId: string;
+    }) => void storeFurniture(id, version, requestId);
+    const onAttemptRetrieveFurniture = ({
+      id,
+      tileX,
+      tileY,
+      rotation,
+      version,
+      requestId,
+    }: {
+      id: number;
+      tileX: number;
+      tileY: number;
+      rotation: number;
+      version: number;
+      requestId: string;
+    }) => void retrieveFurniture(id, tileX, tileY, rotation, version, requestId);
 
     EventBus.on("attempt-plant", onAttemptPlant);
     EventBus.on("attempt-placement", onAttemptPlacement);
+    EventBus.on("attempt-furniture-edit", onAttemptFurnitureEdit);
+    EventBus.on("attempt-store-furniture", onAttemptStoreFurniture);
+    EventBus.on("attempt-retrieve-furniture", onAttemptRetrieveFurniture);
 
     const realtime = connectRealtime(
       (msg) => {
         if (msg.type === "furniture-placed") {
+          applyFurnitureRow(msg.furniture as FurnitureRow);
+        } else if (msg.type === "furniture-moved" || msg.type === "furniture-rotated") {
+          applyFurnitureRow(msg.furniture as FurnitureRow);
+        } else if (msg.type === "furniture-stored") {
           const row = msg.furniture as FurnitureRow;
-          applyFurniture([...sanctuaryState.furniture.filter((f) => f.id !== row.id), row]);
+          removeFurnitureRow(row.id);
+          addStoredRow(row);
+        } else if (msg.type === "furniture-retrieved") {
+          const row = msg.furniture as FurnitureRow;
+          removeStoredRow(row.id);
+          applyFurnitureRow(row);
         } else if (msg.type === "balance-updated") {
           setCarePoints(msg.balance);
         } else if (msg.type === "purchase-rejected") {
-          setRejection(msg.reason);
-          clearTimeout(rejectionTimer.current);
-          rejectionTimer.current = setTimeout(() => setRejection(null), 2500);
+          flashRejection(msg.reason);
         }
       },
       // Re-hydrate on every open, including reconnects --- this is the whole
@@ -139,10 +286,13 @@ export function useSanctuary() {
     return () => {
       EventBus.off("attempt-plant", onAttemptPlant);
       EventBus.off("attempt-placement", onAttemptPlacement);
+      EventBus.off("attempt-furniture-edit", onAttemptFurnitureEdit);
+      EventBus.off("attempt-store-furniture", onAttemptStoreFurniture);
+      EventBus.off("attempt-retrieve-furniture", onAttemptRetrieveFurniture);
       realtime.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { guineaPig, carePoints, flowers, furniture, rejection, feed };
+  return { guineaPig, carePoints, flowers, furniture, storedFurniture, rejection, feed };
 }
