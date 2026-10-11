@@ -66,6 +66,15 @@ Exception: a visitor's own Care Points balance may be shown as a plain number
 --- it's the one stat that's actually about the visitor, not the guinea pig,
 and the shop can't work without it.
 
+**Exception, discussed and approved 2026-10-11:** the cooperative
+house-construction minigame may show shared construction progress (percent
+toward completion), how many visitors are building together right now, and
+the resulting teamwork multiplier. These describe the shared project the
+whole sanctuary is building, not any one visitor or the guinea pigs ---
+the multiplier exists specifically to make "more people helping, right now,
+makes this faster" visible, which it can't teach while hidden. No ranking,
+leaderboard, or per-visitor comparison rides along with it.
+
 ## Persistence
 
 If an interaction is presented to the visitor as permanent, it must actually
