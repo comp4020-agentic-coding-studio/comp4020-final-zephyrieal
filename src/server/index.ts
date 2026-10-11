@@ -18,6 +18,7 @@ import {
   type Rotation,
   FEED_REWARD,
 } from "./furniture.ts";
+import { contribute, getConstructionState } from "./construction.ts";
 
 declare global {
   namespace Express {
@@ -89,10 +90,11 @@ app.get("/api/state", (req: Request, res: Response) => {
   const furniture = getFurniture(db);
   const storedFurniture = getStoredFurniture(db);
   const carePoints = getBalance(db, req.visitorId);
+  const construction = getConstructionState(db);
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
-  res.json({ guineaPig, flowers, furniture, storedFurniture, carePoints, recentVisits });
+  res.json({ guineaPig, flowers, furniture, storedFurniture, carePoints, construction, recentVisits });
 });
 
 // Feeding earns Care Points (CLAUDE.md's discussed exception) alongside the
@@ -302,6 +304,36 @@ app.post("/api/plant", (req: Request, res: Response) => {
   res.json({ flowers: getFlowers() });
 });
 
+// A "Build!" click. No client-sent progress value is ever accepted --- the
+// server alone decides how many units a click is worth, based on how many
+// distinct visitors it has seen contribute in the last few seconds. See
+// src/server/construction.ts and
+// docs/decisions/0003-construction-concurrency.md.
+app.post("/api/construction/contribute", (req: Request, res: Response) => {
+  const { requestId } = req.body as { requestId?: unknown };
+  if (typeof requestId !== "string" || requestId.length === 0) {
+    res.status(400).json({ ok: false, reason: "requestId (string) is required" });
+    return;
+  }
+
+  const result = contribute(db, req.visitorId, requestId);
+  if (!result.ok) {
+    res.status(409).json(result);
+    return;
+  }
+
+  res.json(result);
+  broadcast({
+    type: "construction-progress",
+    progressUnits: result.progressUnits,
+    targetUnits: result.targetUnits,
+    status: result.status,
+    activeBuilders: result.activeBuilders,
+    multiplierUnits: result.multiplierUnits,
+    hadCooperativeMoment: result.hadCooperativeMoment,
+  });
+});
+
 // Publishes README.md in full at /readme/, rendered rather than escaped
 // verbatim --- replaces the placeholder's <pre> dump. spec/invariants.test.ts
 // checks the README's headings show up here, in order.
@@ -327,3 +359,18 @@ const httpServer = app.listen(port, "0.0.0.0", () => {
   console.log(`Guinea Pig Sanctuary listening on :${port}`);
 });
 attachRealtime(httpServer);
+
+// Progress increasing already broadcasts immediately (a contribution
+// triggers its own push); a builder going quiet for 5s has no contribution
+// event of its own to push on, so nothing else would ever tell other
+// visitors the multiplier just dropped. This is the only thing this tick is
+// for --- it broadcasts only when the active-builder count actually changed
+// since the last tick, not on every tick.
+let lastBroadcastActiveBuilders = -1;
+setInterval(() => {
+  const snapshot = getConstructionState(db);
+  if (snapshot.activeBuilders !== lastBroadcastActiveBuilders) {
+    lastBroadcastActiveBuilders = snapshot.activeBuilders;
+    broadcast({ type: "construction-progress", ...snapshot });
+  }
+}, 1000);
