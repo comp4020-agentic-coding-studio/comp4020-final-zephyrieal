@@ -128,6 +128,43 @@ db.exec(`
   );
 `);
 
+// One shared construction project (see
+// docs/decisions/0003-construction-concurrency.md): progress is stored as
+// integer units (100 units = 1 construction point, 10000 = complete) so the
+// 1x/1.5x/2x/2.5x teamwork multiplier never touches floating point.
+// had_cooperative_moment is sticky (0 -> 1 only) once any contribution ever
+// saw 2+ simultaneous active builders, and decides the completion reward.
+// Who's actively building right now is intentionally NOT in this table ---
+// that's ephemeral, in-memory, reconstructed from recent contributions (see
+// construction.ts), never permanent world state.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS construction_projects (
+    id TEXT PRIMARY KEY,
+    progress_units INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'in_progress',
+    had_cooperative_moment INTEGER NOT NULL DEFAULT 0,
+    completed_at TEXT
+  );
+`);
+
+// One row per accepted "Build!" click --- a one-shot insert, never mutated
+// afterward, so request_id's own UNIQUE constraint is sufficient idempotency
+// (same idiom as placeFurniture/care_point_transactions; no file-private
+// replay ledger needed since nothing here repeatedly edits an old row).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS construction_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    visitor_id TEXT NOT NULL,
+    units_awarded INTEGER NOT NULL,
+    request_id TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_construction_contributions_visitor
+  ON construction_contributions (visitor_id);
+`);
+
 // Potato is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.
@@ -136,5 +173,17 @@ if (!existing) {
   db.prepare(
     `INSERT INTO guinea_pigs (id, name, personality, feed_count, last_fed_at)
      VALUES ('potato', 'Potato', 'curious', 0, NULL)`,
+  ).run();
+}
+
+// One shared house to build, like the one shared guinea pig --- never a
+// per-visitor or per-session project (see CLAUDE.md, "one shared world").
+const existingProject = db
+  .prepare("SELECT id FROM construction_projects WHERE id = ?")
+  .get("guinea-pig-house");
+if (!existingProject) {
+  db.prepare(
+    `INSERT INTO construction_projects (id, progress_units, status, had_cooperative_moment)
+     VALUES ('guinea-pig-house', 0, 'in_progress', 0)`,
   ).run();
 }
