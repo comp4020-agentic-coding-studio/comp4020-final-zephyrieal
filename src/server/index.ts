@@ -34,13 +34,23 @@ const publicDir = join(repoRoot, "public");
 
 const app = express();
 app.use(express.json());
-app.use(express.static(publicDir));
 
 // Anonymous, persistent-per-browser identity: no accounts, no passwords. A
 // returning visitor keeps the same id for as long as they keep the cookie;
 // a stranger with no cookie gets a fresh one. See README, "A world that
 // remembers" --- the id exists so a trace can be attributed to *a* visitor,
 // not so visitors can be told apart in any stronger sense than that.
+//
+// Registered before express.static (found while verifying the construction
+// minigame): a visitor's very first request is normally `GET /`, which
+// express.static answers directly and never reaches middleware registered
+// after it --- so the first page load never minted a cookie, and the page's
+// own first WebSocket upgrade (which carries whatever cookie the browser has
+// at that moment) had nothing to send, got rejected by realtime.ts for
+// lacking one, and only recovered once some later request (any fetch to a
+// non-static route) finally minted one. Registering this first means every
+// request, including the first one, gets an identity before anything else
+// runs.
 app.use((req: Request, res: Response, next: NextFunction) => {
   const cookie = req.headers.cookie ?? "";
   const existing = cookie.match(/visitor=([a-f0-9-]+)/)?.[1];
@@ -51,6 +61,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   req.visitorId = visitorId;
   next();
 });
+
+app.use(express.static(publicDir));
 
 interface GuineaPig {
   name: string;
