@@ -3,6 +3,7 @@ import { connectRealtime } from "../net/socket.ts";
 import { EventBus } from "../game/eventBus.ts";
 import { sanctuaryState, type FlowerRow } from "../game/sanctuaryState.ts";
 import type { FurnitureRow } from "../../server/furniture.ts";
+import type { ConstructionSnapshot } from "../../server/construction.ts";
 
 export interface GuineaPig {
   name: string;
@@ -17,6 +18,7 @@ interface StateResponse {
   furniture: FurnitureRow[];
   storedFurniture: FurnitureRow[];
   carePoints: number;
+  construction: ConstructionSnapshot;
 }
 
 // The one place every mutating fetch() call happens --- Phaser scenes only
@@ -31,6 +33,7 @@ export function useSanctuary() {
   const [flowers, setFlowers] = useState<FlowerRow[]>([]);
   const [furniture, setFurniture] = useState<FurnitureRow[]>([]);
   const [storedFurniture, setStoredFurniture] = useState<FurnitureRow[]>([]);
+  const [construction, setConstruction] = useState<ConstructionSnapshot | null>(null);
   const [rejection, setRejection] = useState<string | null>(null);
   const rejectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -65,6 +68,20 @@ export function useSanctuary() {
     setStoredFurniture((prev) => prev.filter((f) => f.id !== id));
   }
 
+  // The transition detection (not-completed -> completed) happens here, once,
+  // regardless of whether the snapshot arrived via this visitor's own
+  // contribute() response or a WS broadcast from someone else's --- both
+  // paths funnel through this function.
+  function applyConstruction(next: ConstructionSnapshot) {
+    const wasCompleted = sanctuaryState.construction?.status === "completed";
+    sanctuaryState.construction = next;
+    setConstruction(next);
+    EventBus.emit("construction-updated");
+    if (!wasCompleted && next.status === "completed") {
+      EventBus.emit("construction-celebrate");
+    }
+  }
+
   function flashRejection(reason: string) {
     setRejection(reason);
     clearTimeout(rejectionTimer.current);
@@ -79,6 +96,7 @@ export function useSanctuary() {
     applyFlowers(data.flowers);
     applyFurniture(data.furniture);
     setStoredFurniture(data.storedFurniture);
+    applyConstruction(data.construction);
   }
 
   async function feed() {
@@ -197,6 +215,35 @@ export function useSanctuary() {
     EventBus.emit("retrieve-result", { ok: true, furniture: data.furniture });
   }
 
+  // One "Build!" click. No progress value is ever sent --- the server alone
+  // decides how many units this is worth, from how many distinct visitors
+  // it's seen contribute recently (CLAUDE.md, "never trust a client-sent
+  // value for construction progress"). Applies the response directly rather
+  // than waiting for the echoed broadcast, same reasoning buyFurniture
+  // already uses for its own balance update.
+  async function contributeToConstruction(requestId: string) {
+    const res = await fetch("/api/construction/contribute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      EventBus.emit("construction-contribute-result", { ok: false, reason: data.reason });
+      flashRejection(data.reason ?? "that didn't work");
+      return;
+    }
+    applyConstruction({
+      progressUnits: data.progressUnits,
+      targetUnits: data.targetUnits,
+      status: data.status,
+      activeBuilders: data.activeBuilders,
+      multiplierUnits: data.multiplierUnits,
+      hadCooperativeMoment: data.hadCooperativeMoment,
+    });
+    EventBus.emit("construction-contribute-result", { ok: true });
+  }
+
   useEffect(() => {
     const onAttemptPlant = ({ x, y, requestId }: { x: number; y: number; requestId: string }) =>
       void plant(x, y, requestId);
@@ -250,12 +297,15 @@ export function useSanctuary() {
       version: number;
       requestId: string;
     }) => void retrieveFurniture(id, tileX, tileY, rotation, version, requestId);
+    const onAttemptConstructionContribute = ({ requestId }: { requestId: string }) =>
+      void contributeToConstruction(requestId);
 
     EventBus.on("attempt-plant", onAttemptPlant);
     EventBus.on("attempt-placement", onAttemptPlacement);
     EventBus.on("attempt-furniture-edit", onAttemptFurnitureEdit);
     EventBus.on("attempt-store-furniture", onAttemptStoreFurniture);
     EventBus.on("attempt-retrieve-furniture", onAttemptRetrieveFurniture);
+    EventBus.on("attempt-construction-contribute", onAttemptConstructionContribute);
 
     const realtime = connectRealtime(
       (msg) => {
@@ -275,6 +325,15 @@ export function useSanctuary() {
           setCarePoints(msg.balance);
         } else if (msg.type === "purchase-rejected") {
           flashRejection(msg.reason);
+        } else if (msg.type === "construction-progress") {
+          applyConstruction({
+            progressUnits: msg.progressUnits,
+            targetUnits: msg.targetUnits,
+            status: msg.status,
+            activeBuilders: msg.activeBuilders,
+            multiplierUnits: msg.multiplierUnits,
+            hadCooperativeMoment: msg.hadCooperativeMoment,
+          });
         }
       },
       // Re-hydrate on every open, including reconnects --- this is the whole
@@ -289,10 +348,11 @@ export function useSanctuary() {
       EventBus.off("attempt-furniture-edit", onAttemptFurnitureEdit);
       EventBus.off("attempt-store-furniture", onAttemptStoreFurniture);
       EventBus.off("attempt-retrieve-furniture", onAttemptRetrieveFurniture);
+      EventBus.off("attempt-construction-contribute", onAttemptConstructionContribute);
       realtime.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { guineaPig, carePoints, flowers, furniture, storedFurniture, rejection, feed };
+  return { guineaPig, carePoints, flowers, furniture, storedFurniture, construction, rejection, feed };
 }

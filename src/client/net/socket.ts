@@ -10,7 +10,16 @@ export type RealtimeMessage =
   | { type: "furniture-stored"; furniture: unknown }
   | { type: "furniture-retrieved"; furniture: unknown }
   | { type: "balance-updated"; balance: number }
-  | { type: "purchase-rejected"; reason: string };
+  | { type: "purchase-rejected"; reason: string }
+  | {
+      type: "construction-progress";
+      progressUnits: number;
+      targetUnits: number;
+      status: "in_progress" | "completed";
+      activeBuilders: number;
+      multiplierUnits: number;
+      hadCooperativeMoment: boolean;
+    };
 
 export interface RealtimeHandle {
   close(): void;
