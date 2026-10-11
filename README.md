@@ -20,6 +20,12 @@ Visitors might plant a garden, build a tunnel, restore a bridge or contribute to
 
 There are no individually owned guinea pigs, private houses, XP, leaderboards or likes. The guinea pigs belong to nobody, and so does the sanctuary. Visitors can leave a trace without needing to claim part of the world as theirs.
 
+## What's here now
+
+Right now there's one guinea pig, Potato. Visitors can feed her — the sanctuary remembers how many times and when, for whoever opens the page next — and plant flowers anywhere in the outdoor meadow, where they stay for good.
+
+Just behind the meadow is Potato's house: a small, shared room where everyone who visits earns their own Care Points by feeding her, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
+
 ## What I can test
 
 Some parts of this definition of good can become explicit checks in `spec/`:
