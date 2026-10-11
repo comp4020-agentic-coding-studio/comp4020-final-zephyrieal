@@ -17,7 +17,7 @@ export class OutdoorScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    this.add.rectangle(width / 2, height / 2, width, height, 0xdcebd4);
+    this.add.tileSprite(width / 2, height / 2, width, height, "grass-tile");
     this.add
       .rectangle(width / 2, height / 2, width - 4, height - 4)
       .setStrokeStyle(2, 0x9ab98c);
