@@ -12,6 +12,11 @@ import iconSave from "../assets/sprites/icon-save.png";
 import iconStore from "../assets/sprites/icon-store.png";
 import iconCancel from "../assets/sprites/icon-cancel.png";
 import uiPanel from "../assets/sprites/ui-panel.png";
+import construction0 from "../assets/sprites/construction-0.png";
+import construction1 from "../assets/sprites/construction-1.png";
+import construction2 from "../assets/sprites/construction-2.png";
+import construction3 from "../assets/sprites/construction-3.png";
+import construction4 from "../assets/sprites/construction-4.png";
 
 // Real pixel art, hand-drawn to match the reference sheet's cozy palette ---
 // replaces the crit-8/9 procedural Graphics placeholders. Vite imports each
@@ -31,4 +36,9 @@ export const SPRITE_ASSETS: Record<string, string> = {
   "icon-store": iconStore,
   "icon-cancel": iconCancel,
   "ui-panel": uiPanel,
+  "construction-0": construction0,
+  "construction-1": construction1,
+  "construction-2": construction2,
+  "construction-3": construction3,
+  "construction-4": construction4,
 };
