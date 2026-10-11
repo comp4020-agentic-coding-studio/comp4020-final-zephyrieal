@@ -49,3 +49,27 @@ as scenario 5 above.
 
 Record the result (pass/fail, date) in `PROCESS.md`'s furniture-editing
 section before relying on this feature at a crit.
+
+## Cooperative construction: UI-only scenarios and restart persistence
+
+`spec/construction.test.ts` covers the server side in full --- progress,
+the multiplier, the 5s inactivity window, rate limiting, real-time
+broadcast, concurrency and completion. What it can't touch, same reason as
+above (no Phaser/DOM rendering in this harness):
+
+1. The construction site in the outdoor meadow visually changes --- a
+   different sprite --- as progress crosses each 25% threshold, and clicking
+   it opens the panel without also planting a flower at that spot.
+2. The panel's progress bar, percentage, active-builder count and teamwork
+   phrasing match what `GET /api/state` reports, and the Build button gives
+   a visible press response.
+3. Reaching 100% replaces the site with the finished house and plays the
+   completion effect for every connected visitor, not just whoever clicked
+   last.
+
+Manually verified 2026-10-11: built to 500/10000 units, restarted the
+server, confirmed progress was still exactly 500 afterward; separately
+drove a fresh project to completion (two cooperating visitors, one
+accepted click `justCompleted: true`, cooperative reward paid), restarted
+again, and confirmed `status` was still `completed` and a further
+contribution was still rejected with 409 --- pass both times.

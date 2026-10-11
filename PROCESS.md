@@ -210,3 +210,62 @@ Phaser/DOM rendering at all. These are checked by hand; see
 Manually verified 2026-10-11: a moved-and-rotated piece and a stored piece
 both kept their new position/rotation/status across a server restart
 (`pnpm start`, stop, `pnpm start` again, re-fetch `/api/state`) --- pass.
+
+## Cooperative construction minigame
+
+Another standalone piece of feature work, same framing as the furniture
+section above: visitors can now click an unfinished construction site in
+the outdoor meadow and work together to build the guinea pig house. One
+person can finish it alone; more people contributing at once makes each
+accepted click worth more. See
+`docs/decisions/0003-construction-concurrency.md` for the full decision
+record (why solo-allowed-with-a-bonus beat solo-only and
+mandatory-multiplayer, the recency-only active-builder model, the
+two-transaction reward design, and why the already-shipped indoor house
+isn't gated behind this).
+
+### CLAUDE.md needed a new exception before this could ship
+
+The Interface section bans raw stat displays except a visitor's own Care
+Points balance. The panel's progress percentage, active-builder count and
+teamwork multiplier are new raw numbers, about the shared project rather
+than any one visitor or the guinea pigs --- `CLAUDE.md` now has a dated
+exception for exactly this, added as its own commit before any panel UI
+landed, the same way the Care Points exception came first before the
+furniture shop did.
+
+### A real pre-existing bug, found while verifying this
+
+The visitor-identity cookie was minted by middleware registered *after*
+`express.static`. A visitor's very first request is `GET /`, which
+`express.static` answers directly without ever reaching that middleware ---
+so the first page load never got a cookie, that load's own first
+WebSocket connection (which carries whatever cookie the browser already
+has) was rejected by `realtime.ts` for having none, and the page sat on
+"Loading the sanctuary's memory…" until some unrelated `fetch()` finally
+minted one. Every existing feature masked this, because testing them
+always means clicking something (feed, plant, buy) within the first
+second or two. Fixed by registering the cookie middleware first. This bug
+predates this week's work; it just happened to be this feature's own
+passive-visitor testing that surfaced it.
+
+### Units, not points, in the database
+
+Progress is stored as integer "units" (100 units = 1 construction point,
+10000 = the completed target) rather than fractional points, so the
+1×/1.5×/2×/2.5× teamwork multiplier never does floating-point arithmetic
+or accumulates rounding error --- the brief's own suggested convention,
+used literally.
+
+### What's still manual
+
+The construction site's sprite swapping across its five stages, the
+panel's appearance and press feedback, and the completion celebration all
+need a running browser to see --- this harness is HTTP+WS only, same
+limitation as the furniture menu above. See `spec/MANUAL.md`.
+
+Manually verified 2026-10-11: progress at 500/10000 units survived a
+server restart; a freshly completed project (two cooperating visitors,
+cooperative reward paid) also kept its `completed` status, and a further
+contribution was still correctly rejected, after a second restart --- pass
+both times.
