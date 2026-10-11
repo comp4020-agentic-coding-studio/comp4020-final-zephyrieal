@@ -86,6 +86,48 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_furniture_tile ON furniture (tile_x, tile_y);
 `);
 
+// Furniture editing + shared storage (see docs/decisions/0002-furniture-editing-concurrency.md):
+// `rotation`/`status`/`version` didn't exist when the table above was first
+// created, so a database from before this week needs them added. `ALTER
+// TABLE ... ADD COLUMN` is guarded by checking `PRAGMA table_info` first ---
+// SQLite has no `ADD COLUMN IF NOT EXISTS`, and running it twice would throw.
+// `tile_x`/`tile_y` stay NOT NULL (a full table rebuild to make them nullable
+// isn't worth the risk to the one Fly volume for no semantic gain): a stored
+// item uses -1 as a "not currently placed" sentinel, which `status` already
+// fully gates the meaning of.
+const furnitureColumns = (db.prepare("PRAGMA table_info(furniture)").all() as { name: string }[]).map(
+  (c) => c.name,
+);
+if (!furnitureColumns.includes("rotation")) {
+  db.exec("ALTER TABLE furniture ADD COLUMN rotation INTEGER NOT NULL DEFAULT 0");
+}
+if (!furnitureColumns.includes("status")) {
+  db.exec("ALTER TABLE furniture ADD COLUMN status TEXT NOT NULL DEFAULT 'placed'");
+}
+if (!furnitureColumns.includes("version")) {
+  db.exec("ALTER TABLE furniture ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+}
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_furniture_status ON furniture (status);
+`);
+
+// A per-mutation idempotency ledger: `furniture.request_id UNIQUE` only
+// guards the original INSERT, but move/rotate/store/retrieve all repeatedly
+// touch the *same* row, so each needs its own replay record. `result_json`
+// stores the exact response computed at commit time so a retried request
+// (e.g. after a dropped response) replays that exact result instead of
+// re-running version-conflict logic against a row whose version has since
+// moved on from under it.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS furniture_mutations (
+    request_id TEXT PRIMARY KEY,
+    furniture_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
 // Potato is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.

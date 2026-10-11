@@ -35,6 +35,14 @@ export const BLOCKED_TILES: Set<string> = (() => {
   return blocked;
 })();
 
+// A piece that's `stored` has no position --- `-1` is the sentinel for "not
+// currently placed" rather than `NULL`, so `tile_x`/`tile_y` can stay NOT
+// NULL (see db.ts). `status` is what actually gates whether the position
+// means anything; nothing should read tile_x/tile_y without checking status
+// first.
+export type Rotation = 0 | 90 | 180 | 270;
+export type FurnitureStatus = "placed" | "stored";
+
 export interface FurnitureRow {
   id: number;
   kind: string;
@@ -42,6 +50,9 @@ export interface FurnitureRow {
   tile_y: number;
   width: number;
   height: number;
+  rotation: Rotation;
+  status: FurnitureStatus;
+  version: number;
   placed_by: string;
   placed_at: string;
   request_id: string;
@@ -54,6 +65,19 @@ interface FootprintRow {
   height: number;
 }
 
+// The catalog's width/height is for rotation 0; rotating 90 or 270 swaps
+// them. Collision math always goes through this rather than the catalog
+// directly, so a rotated piece occupies the tiles it actually covers.
+export function footprintFor(
+  kind: FurnitureKind,
+  rotation: Rotation,
+): { width: number; height: number } {
+  const def = FURNITURE_CATALOG[kind];
+  return rotation === 90 || rotation === 270
+    ? { width: def.height, height: def.width }
+    : { width: def.width, height: def.height };
+}
+
 export type PlacementCheck = { ok: true } | { ok: false; reason: string };
 
 export function isValidPlacement(
@@ -61,18 +85,20 @@ export function isValidPlacement(
   tileX: number,
   tileY: number,
   existing: FootprintRow[],
+  rotation: Rotation = 0,
 ): PlacementCheck {
   const def = FURNITURE_CATALOG[kind as FurnitureKind];
   if (!def) {
     return { ok: false, reason: `unknown furniture kind "${kind}"` };
   }
+  const { width, height } = footprintFor(kind as FurnitureKind, rotation);
   if (
     !Number.isInteger(tileX) ||
     !Number.isInteger(tileY) ||
     tileX < 0 ||
     tileY < 0 ||
-    tileX + def.width > HOUSE_WIDTH ||
-    tileY + def.height > HOUSE_HEIGHT
+    tileX + width > HOUSE_WIDTH ||
+    tileY + height > HOUSE_HEIGHT
   ) {
     return { ok: false, reason: "that doesn't fit inside the house" };
   }
@@ -85,8 +111,8 @@ export function isValidPlacement(
       }
     }
   }
-  for (let dx = 0; dx < def.width; dx++) {
-    for (let dy = 0; dy < def.height; dy++) {
+  for (let dx = 0; dx < width; dx++) {
+    for (let dy = 0; dy < height; dy++) {
       const key = `${tileX + dx},${tileY + dy}`;
       if (BLOCKED_TILES.has(key)) {
         return { ok: false, reason: "that tile is a wall or the entrance" };
@@ -110,7 +136,13 @@ export function getBalance(db: DatabaseSync, visitorId: string): number {
 
 export function getFurniture(db: DatabaseSync): FurnitureRow[] {
   return db
-    .prepare("SELECT * FROM furniture ORDER BY id ASC")
+    .prepare("SELECT * FROM furniture WHERE status = 'placed' ORDER BY id ASC")
+    .all() as unknown as FurnitureRow[];
+}
+
+export function getStoredFurniture(db: DatabaseSync): FurnitureRow[] {
+  return db
+    .prepare("SELECT * FROM furniture WHERE status = 'stored' ORDER BY id ASC")
     .all() as unknown as FurnitureRow[];
 }
 
@@ -196,7 +228,7 @@ export function placeFurniture(
     }
 
     const existing = db
-      .prepare("SELECT tile_x, tile_y, width, height FROM furniture")
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed'")
       .all() as unknown as FootprintRow[];
     const placement = isValidPlacement(kind, tileX, tileY, existing);
     if (!placement.ok) {
@@ -220,6 +252,229 @@ export function placeFurniture(
       .prepare("SELECT * FROM furniture WHERE id = ?")
       .get(result.lastInsertRowid) as unknown as FurnitureRow;
     return { ok: true, furniture, balance: balance - def.cost, replay: false };
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+export type EditResult =
+  | { ok: true; furniture: FurnitureRow; replay: boolean }
+  | { ok: false; reason: string; current?: FurnitureRow };
+
+// `furniture.request_id UNIQUE` only guards the original INSERT; move/store/
+// retrieve all touch the *same* row repeatedly, so each needs its own replay
+// record (see docs/decisions/0002-furniture-editing-concurrency.md). Storing
+// the exact response at commit time and returning it verbatim on replay ---
+// rather than falling through to a fresh version check --- matters because by
+// the time a retried request arrives the row's version has already moved on
+// from the one the original request carried.
+function checkReplay(db: DatabaseSync, requestId: string): EditResult | undefined {
+  const row = db
+    .prepare("SELECT result_json FROM furniture_mutations WHERE request_id = ?")
+    .get(requestId) as { result_json: string } | undefined;
+  return row ? (JSON.parse(row.result_json) as EditResult) : undefined;
+}
+
+function recordMutation(
+  db: DatabaseSync,
+  requestId: string,
+  furnitureId: number,
+  action: string,
+  result: EditResult,
+): void {
+  db.prepare(
+    "INSERT INTO furniture_mutations (request_id, furniture_id, action, result_json) VALUES (?, ?, ?, ?)",
+  ).run(requestId, furnitureId, action, JSON.stringify(result));
+}
+
+// Moving and rotating are committed together in one Save, so they're one
+// transaction here --- the two are broadcast as separate WS events by the
+// route (furniture-moved / furniture-rotated), but the underlying mutation
+// and its concurrency guard are the same operation. No `await` anywhere in
+// this function, same discipline as placeFurniture and for the same reason:
+// see docs/decisions/0001-concurrent-furniture-placement.md.
+export function editFurniture(
+  db: DatabaseSync,
+  id: number,
+  tileX: number,
+  tileY: number,
+  rotation: Rotation,
+  expectedVersion: number,
+  requestId: string,
+): EditResult {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const replay = checkReplay(db, requestId);
+    if (replay) {
+      db.exec("COMMIT");
+      return replay;
+    }
+
+    const current = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as
+      | FurnitureRow
+      | undefined;
+    if (!current) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "that piece of furniture doesn't exist anymore" };
+    }
+    if (current.status !== "placed") {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "that piece is in storage, not on the floor", current };
+    }
+    if (current.version !== expectedVersion) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "this piece changed since you last saw it", current };
+    }
+
+    const existing = db
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed' AND id != ?")
+      .all(id) as unknown as FootprintRow[];
+    const placement = isValidPlacement(current.kind, tileX, tileY, existing, rotation);
+    if (!placement.ok) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: placement.reason, current };
+    }
+
+    const { width, height } = footprintFor(current.kind as FurnitureKind, rotation);
+    const update = db
+      .prepare(
+        "UPDATE furniture SET tile_x=?, tile_y=?, rotation=?, width=?, height=?, version=version+1 WHERE id=? AND version=? AND status='placed'",
+      )
+      .run(tileX, tileY, rotation, width, height, id, expectedVersion);
+    if (update.changes !== 1) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "this piece changed since you last saw it", current };
+    }
+
+    const furniture = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as unknown as FurnitureRow;
+    const result: EditResult = { ok: true, furniture, replay: false };
+    recordMutation(db, requestId, id, "edit", result);
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+// Stores a placed piece into the shared pool: it keeps existing (the row is
+// never deleted), it just stops occupying a tile. rotation/width/height are
+// left as they were, so a later retrieve looks the same by default.
+export function storeFurniture(
+  db: DatabaseSync,
+  id: number,
+  expectedVersion: number,
+  requestId: string,
+): EditResult {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const replay = checkReplay(db, requestId);
+    if (replay) {
+      db.exec("COMMIT");
+      return replay;
+    }
+
+    const current = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as
+      | FurnitureRow
+      | undefined;
+    if (!current) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "that piece of furniture doesn't exist anymore" };
+    }
+    if (current.status !== "placed") {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "that's already in storage", current };
+    }
+    if (current.version !== expectedVersion) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "this piece changed since you last saw it", current };
+    }
+
+    const update = db
+      .prepare(
+        "UPDATE furniture SET status='stored', tile_x=-1, tile_y=-1, version=version+1 WHERE id=? AND version=? AND status='placed'",
+      )
+      .run(id, expectedVersion);
+    if (update.changes !== 1) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "this piece changed since you last saw it", current };
+    }
+
+    const furniture = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as unknown as FurnitureRow;
+    const result: EditResult = { ok: true, furniture, replay: false };
+    recordMutation(db, requestId, id, "store", result);
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+// Retrieving is free, for anyone --- the `status != 'stored'` check below is
+// what actually prevents two visitors retrieving the same item at once (same
+// single-threaded, no-`await` reasoning as placeFurniture/editFurniture,
+// restated for the stored->placed transition), and the `AND status='stored'`
+// in the UPDATE's own WHERE clause is defense in depth on top of that.
+export function retrieveFurniture(
+  db: DatabaseSync,
+  id: number,
+  tileX: number,
+  tileY: number,
+  rotation: Rotation,
+  expectedVersion: number,
+  requestId: string,
+): EditResult {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const replay = checkReplay(db, requestId);
+    if (replay) {
+      db.exec("COMMIT");
+      return replay;
+    }
+
+    const current = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as
+      | FurnitureRow
+      | undefined;
+    if (!current) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "that piece of furniture doesn't exist anymore" };
+    }
+    if (current.status !== "stored") {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "someone already took that", current };
+    }
+    if (current.version !== expectedVersion) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "this piece changed since you last saw it", current };
+    }
+
+    const existing = db
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed'")
+      .all() as unknown as FootprintRow[];
+    const placement = isValidPlacement(current.kind, tileX, tileY, existing, rotation);
+    if (!placement.ok) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: placement.reason, current };
+    }
+
+    const { width, height } = footprintFor(current.kind as FurnitureKind, rotation);
+    const update = db
+      .prepare(
+        "UPDATE furniture SET status='placed', tile_x=?, tile_y=?, rotation=?, width=?, height=?, version=version+1 WHERE id=? AND version=? AND status='stored'",
+      )
+      .run(tileX, tileY, rotation, width, height, id, expectedVersion);
+    if (update.changes !== 1) {
+      db.exec("ROLLBACK");
+      return { ok: false, reason: "someone already took that", current };
+    }
+
+    const furniture = db.prepare("SELECT * FROM furniture WHERE id = ?").get(id) as unknown as FurnitureRow;
+    const result: EditResult = { ok: true, furniture, replay: false };
+    recordMutation(db, requestId, id, "retrieve", result);
+    db.exec("COMMIT");
+    return result;
   } catch (err) {
     db.exec("ROLLBACK");
     throw err;
