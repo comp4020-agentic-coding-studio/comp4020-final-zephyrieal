@@ -131,6 +131,72 @@ main {
   image-rendering: -moz-crisp-edges;
 }
 
+.construction-panel {
+  margin-top: 1rem;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.construction-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.construction-panel-close {
+  background: none;
+  color: var(--ink);
+  padding: 0.2rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.construction-panel-progress-label {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.construction-progress-bar {
+  background: #e4ead9;
+  border-radius: 999px;
+  height: 0.9rem;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+}
+
+.construction-progress-fill {
+  background: var(--accent);
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.construction-panel-stats {
+  font-size: 0.9rem;
+  color: #3f4f39;
+  margin: 0 0 0.75rem;
+}
+
+.construction-build-button {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 0.75rem;
+  transition: transform 0.12s ease;
+}
+
+.construction-build-pulse {
+  transform: scale(0.95);
+}
+
+.construction-panel-done {
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0;
+}
+
 button {
   font: inherit;
   padding: 0.6rem 1.2rem;

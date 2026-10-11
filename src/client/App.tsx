@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PhaserGame } from "./game/PhaserGame.tsx";
 import { EventBus } from "./game/eventBus.ts";
 import { CarePointsBadge } from "./ui/CarePointsBadge.tsx";
 import { ShopPanel } from "./ui/ShopPanel.tsx";
 import { StoragePanel } from "./ui/StoragePanel.tsx";
+import { ConstructionPanel } from "./ui/ConstructionPanel.tsx";
 import { useSanctuary } from "./state/useSanctuary.ts";
 
 function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
@@ -18,9 +19,23 @@ function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
 }
 
 export default function App() {
-  const { guineaPig, carePoints, flowers, storedFurniture, rejection, feed } = useSanctuary();
+  const { guineaPig, carePoints, flowers, storedFurniture, construction, rejection, feed } =
+    useSanctuary();
   const [view, setView] = useState<"outdoor" | "indoor">("outdoor");
   const [feeding, setFeeding] = useState(false);
+  const [constructionPanelOpen, setConstructionPanelOpen] = useState(false);
+
+  // The construction site is a Phaser sprite living in OutdoorScene; this is
+  // the first Phaser-to-React direction in this codebase (everywhere else,
+  // like toggleView below, React drives Phaser) --- the sprite's own click
+  // handler emits this once the site is clicked.
+  useEffect(() => {
+    const onOpen = () => setConstructionPanelOpen(true);
+    EventBus.on("open-construction-panel", onOpen);
+    return () => {
+      EventBus.off("open-construction-panel", onOpen);
+    };
+  }, []);
 
   function toggleView() {
     const next = view === "outdoor" ? "indoor" : "outdoor";
@@ -71,6 +86,13 @@ export default function App() {
         </div>
 
         <PhaserGame />
+
+        {constructionPanelOpen && (
+          <ConstructionPanel
+            construction={construction}
+            onClose={() => setConstructionPanelOpen(false)}
+          />
+        )}
 
         {view === "indoor" && (
           <>
