@@ -11,9 +11,10 @@ body {
   color: var(--ink);
   background: #fdfaf4;
   /* The visitor's "character" is the cursor itself, not an on-screen sprite
-     --- a cute pixel paw stands in for a player avatar. Hotspot (3,3) is the
-     paw's top-left toe, matching where a default arrow's point would be. */
-  cursor: url("./assets/sprites/cursor-paw.png") 3 3, auto;
+     --- a pixel-art arrow (classic cursor silhouette, redrawn in the
+     sanctuary's palette) stands in for a player avatar. Hotspot (1,1) is
+     the arrow's tip. */
+  cursor: url("./assets/sprites/cursor-arrow.png") 1 1, auto;
 }
 
 main {
