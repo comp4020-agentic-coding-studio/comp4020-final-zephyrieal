@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
+import { logAction } from "./log.ts";
 
 // Server -> client push only. Purchases and other mutations still go over
 // the existing HTTP intent endpoints (/api/feed, /api/plant,
@@ -34,9 +35,11 @@ export function attachRealtime(httpServer: Server): void {
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (!connections.has(visitorId)) connections.set(visitorId, new Set());
       connections.get(visitorId)!.add(ws);
+      logAction(visitorId, "connected", { totalVisitors: connections.size });
       ws.on("close", () => {
         connections.get(visitorId)?.delete(ws);
         if (connections.get(visitorId)?.size === 0) connections.delete(visitorId);
+        logAction(visitorId, "disconnected", { totalVisitors: connections.size });
       });
     });
   });

@@ -19,6 +19,7 @@ import {
   FEED_REWARD,
 } from "./furniture.ts";
 import { contribute, getConstructionState } from "./construction.ts";
+import { logAction } from "./log.ts";
 
 declare global {
   namespace Express {
@@ -124,6 +125,7 @@ app.post("/api/feed", (req: Request, res: Response) => {
     req.visitorId,
   );
   const { balance } = earnCarePoints(db, req.visitorId, FEED_REWARD, "fed potato", id);
+  logAction(req.visitorId, "fed-potato", { balance });
 
   sendToVisitor(req.visitorId, { type: "balance-updated", balance });
   res.json({ guineaPig: getPotato(), balance });
@@ -159,9 +161,16 @@ app.post("/api/furniture/place", (req: Request, res: Response) => {
 
   const result = placeFurniture(db, req.visitorId, kind, tileX, tileY, requestId);
   if (!result.ok) {
+    logAction(req.visitorId, "furniture-place-denied", { kind, tileX, tileY, reason: result.reason });
     res.status(409).json(result);
     return;
   }
+  logAction(req.visitorId, result.replay ? "furniture-place-replay" : "furniture-placed", {
+    furnitureId: result.furniture.id,
+    kind,
+    tileX,
+    tileY,
+  });
 
   res.json(result);
   broadcast({ type: "furniture-placed", furniture: result.furniture });
@@ -208,9 +217,16 @@ app.post("/api/furniture/edit", (req: Request, res: Response) => {
 
   const result = editFurniture(db, id, tileX, tileY, rotation, version, requestId);
   if (!result.ok) {
+    logAction(req.visitorId, "furniture-edit-denied", { id, tileX, tileY, rotation, reason: result.reason });
     res.status(409).json(result);
     return;
   }
+  logAction(req.visitorId, result.replay ? "furniture-edit-replay" : "furniture-edited", {
+    id,
+    tileX,
+    tileY,
+    rotation,
+  });
 
   res.json(result);
   broadcast({ type: "furniture-moved", furniture: result.furniture });
@@ -242,9 +258,11 @@ app.post("/api/furniture/store", (req: Request, res: Response) => {
 
   const result = storeFurniture(db, id, version, requestId);
   if (!result.ok) {
+    logAction(req.visitorId, "furniture-store-denied", { id, reason: result.reason });
     res.status(409).json(result);
     return;
   }
+  logAction(req.visitorId, result.replay ? "furniture-store-replay" : "furniture-stored", { id });
 
   res.json(result);
   broadcast({ type: "furniture-stored", furniture: result.furniture });
@@ -284,9 +302,15 @@ app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
 
   const result = retrieveFurniture(db, id, tileX, tileY, rotation, version, requestId);
   if (!result.ok) {
+    logAction(req.visitorId, "furniture-retrieve-denied", { id, tileX, tileY, reason: result.reason });
     res.status(409).json(result);
     return;
   }
+  logAction(req.visitorId, result.replay ? "furniture-retrieve-replay" : "furniture-retrieved", {
+    id,
+    tileX,
+    tileY,
+  });
 
   res.json(result);
   broadcast({ type: "furniture-retrieved", furniture: result.furniture });
@@ -313,6 +337,7 @@ app.post("/api/plant", (req: Request, res: Response) => {
   db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, 'planted a flower')").run(
     req.visitorId,
   );
+  logAction(req.visitorId, "planted-flower", { x: clampedX, y: clampedY });
   res.json({ flowers: getFlowers() });
 });
 
@@ -330,9 +355,16 @@ app.post("/api/construction/contribute", (req: Request, res: Response) => {
 
   const result = contribute(db, req.visitorId, requestId);
   if (!result.ok) {
+    logAction(req.visitorId, "construction-contribute-denied", { reason: result.reason });
     res.status(409).json(result);
     return;
   }
+  logAction(req.visitorId, result.replay ? "construction-contribute-replay" : "construction-contributed", {
+    unitsAwarded: result.unitsAwarded,
+    progressUnits: result.progressUnits,
+    activeBuilders: result.activeBuilders,
+    justCompleted: result.justCompleted,
+  });
 
   res.json(result);
   broadcast({
