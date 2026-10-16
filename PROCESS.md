@@ -315,3 +315,45 @@ server restart; a freshly completed project (two cooperating visitors,
 cooperative reward paid) also kept its `completed` status, and a further
 contribution was still correctly rejected, after a second restart --- pass
 both times.
+
+## Crit 10: who-did-what logging
+
+### Why this was the gap, not the multi-user mechanics
+
+The `visitor=<uuid>` cookie (crit 8) and the per-visitor checks it already
+gates (Care Points balance, furniture ownership-free placement, construction
+rate limiting) already satisfied "the app tells people apart" and "checked on
+the server." What the server never did was *say* any of that out loud: before
+this, the only line it ever printed was the startup banner. Crit 10's actual
+new bar --- "logs who did what, server-side, and the logging outlives the
+crit" --- needed a logging layer that didn't exist yet, not a new identity
+system.
+
+### One JSON line per action, to stdout
+
+`src/server/log.ts` exports a single `logAction(visitorId, action, details)`
+helper that prints one JSON object per call: a timestamp, the visitor id, the
+action name, and whatever's specific to it (tile coordinates, units awarded,
+a denial reason). Every mutating route (`/api/feed`, `/api/plant`, the four
+furniture routes, `/api/construction/contribute`) and both WebSocket
+connect/disconnect call it --- plain JSON rather than a logging library,
+because the whole requirement is satisfiable with `console.log` plus
+structure, and Fly already captures and retains stdout per
+`mise exec -- flyctl logs -a <repo>` (that retention is what makes the log
+"outlive the crit," not anything this app does itself).
+
+Denied actions (insufficient balance, overlapping tile, stale version, rate
+limited) are logged too, with the reason, since "can't change what should be
+someone else's" is exactly the moment the crit's narration needs to point at.
+Idempotent replays are logged under a distinct `*-replay` action name rather
+than silently as a fresh success, so a retried request doesn't read as a
+second action by the same visitor.
+
+### What this doesn't try to be
+
+No log viewer, no persistence of the log itself beyond what Fly already keeps,
+no per-visitor history endpoint --- the spec asks for logs a person narrates
+from in a terminal, not a feature visitors see. Keeping it to one helper
+function and call sites at each existing route kept this from growing into a
+second event system alongside the WebSocket broadcasts that already exist for
+a different purpose (informing other connected clients, not auditing).
