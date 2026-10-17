@@ -10,6 +10,11 @@ public/
 # Fly volume at /data, set via DB_PATH in fly.toml
 data/
 
+# output from `pnpm test:browser` (playwright.config.ts) --- screenshots and
+# traces from a local run, not source
+test-results/
+playwright-report/
+
 # editor and OS junk
 .DS_Store
 ._*
