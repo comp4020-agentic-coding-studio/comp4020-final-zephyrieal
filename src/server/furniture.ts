@@ -78,6 +78,26 @@ export function footprintFor(
     : { width: def.width, height: def.height };
 }
 
+// Rotating furniture swaps in a different drawn sprite rather than spinning
+// one image --- a doghouse's back wall doesn't look like its front wall
+// rotated. Each kind has 3 drawn views (front/back/left); "right" reuses the
+// left sprite mirrored rather than a fourth drawn asset, since a side view
+// and its mirror image are the same art. 0° faces the viewer (front) and
+// rotation advances clockwise from there, matching the order Rotate already
+// cycles through (ROTATIONS in IndoorScene.ts).
+export function viewFor(kind: FurnitureKind, rotation: Rotation): { key: string; flipX: boolean } {
+  switch (rotation) {
+    case 0:
+      return { key: `furniture-${kind}-front`, flipX: false };
+    case 180:
+      return { key: `furniture-${kind}-back`, flipX: false };
+    case 270:
+      return { key: `furniture-${kind}-left`, flipX: false };
+    case 90:
+      return { key: `furniture-${kind}-left`, flipX: true };
+  }
+}
+
 export type PlacementCheck = { ok: true } | { ok: false; reason: string };
 
 export function isValidPlacement(

@@ -8,6 +8,7 @@ import {
   BLOCKED_TILES,
   isValidPlacement,
   footprintFor,
+  viewFor,
   type FurnitureKind,
   type FurnitureRow,
   type Rotation,
@@ -220,13 +221,14 @@ export class IndoorScene extends Phaser.Scene {
     this.preview?.destroy();
     const check = isValidPlacement(kind, tile.x, tile.y, this.currentFootprint(excludeId), rotation);
     const { width, height } = footprintFor(kind, rotation);
+    const view = viewFor(kind, rotation);
     this.preview = this.add
       .image(
         HOUSE_ORIGIN_X + tile.x * TILE_SIZE + (width * TILE_SIZE) / 2,
         HOUSE_ORIGIN_Y + tile.y * TILE_SIZE + (height * TILE_SIZE) / 2,
-        `furniture-${kind}`,
+        view.key,
       )
-      .setAngle(rotation)
+      .setFlipX(view.flipX)
       .setAlpha(0.6)
       .setTint(check.ok ? 0x88ff88 : 0xff8888);
   }
@@ -309,13 +311,14 @@ export class IndoorScene extends Phaser.Scene {
   private redrawFurniture() {
     for (const sprite of this.furnitureSprites) sprite.destroy();
     this.furnitureSprites = sanctuaryState.furniture.map((row: FurnitureRow) => {
+      const view = viewFor(row.kind as FurnitureKind, row.rotation as Rotation);
       const sprite = this.add
         .image(
           HOUSE_ORIGIN_X + row.tile_x * TILE_SIZE + (row.width * TILE_SIZE) / 2,
           HOUSE_ORIGIN_Y + row.tile_y * TILE_SIZE + (row.height * TILE_SIZE) / 2,
-          `furniture-${row.kind}`,
+          view.key,
         )
-        .setAngle(row.rotation)
+        .setFlipX(view.flipX)
         .setInteractive();
       sprite.on("pointerdown", () => {
         this.suppressNextSceneClick = true;

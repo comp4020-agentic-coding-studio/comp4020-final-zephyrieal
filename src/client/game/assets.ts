@@ -3,9 +3,15 @@ import tileWall from "../assets/sprites/tile-wall.png";
 import grassTile from "../assets/sprites/grass-tile.png";
 import flower from "../assets/sprites/flower.png";
 import guineaPig from "../assets/sprites/guinea-pig.png";
-import furnitureHayBed from "../assets/sprites/furniture-hay_bed.png";
-import furnitureTunnel from "../assets/sprites/furniture-tunnel.png";
-import furnitureHideout from "../assets/sprites/furniture-hideout.png";
+import hayBedFront from "../assets/sprites/furniture-hay_bed-front.png";
+import hayBedBack from "../assets/sprites/furniture-hay_bed-back.png";
+import hayBedLeft from "../assets/sprites/furniture-hay_bed-left.png";
+import tunnelFront from "../assets/sprites/furniture-tunnel-front.png";
+import tunnelBack from "../assets/sprites/furniture-tunnel-back.png";
+import tunnelLeft from "../assets/sprites/furniture-tunnel-left.png";
+import hideoutFront from "../assets/sprites/furniture-hideout-front.png";
+import hideoutBack from "../assets/sprites/furniture-hideout-back.png";
+import hideoutLeft from "../assets/sprites/furniture-hideout-left.png";
 import iconRotate from "../assets/sprites/icon-rotate.png";
 import iconMove from "../assets/sprites/icon-move.png";
 import iconSave from "../assets/sprites/icon-save.png";
@@ -27,9 +33,15 @@ export const SPRITE_ASSETS: Record<string, string> = {
   "grass-tile": grassTile,
   flower,
   "guinea-pig": guineaPig,
-  "furniture-hay_bed": furnitureHayBed,
-  "furniture-tunnel": furnitureTunnel,
-  "furniture-hideout": furnitureHideout,
+  "furniture-hay_bed-front": hayBedFront,
+  "furniture-hay_bed-back": hayBedBack,
+  "furniture-hay_bed-left": hayBedLeft,
+  "furniture-tunnel-front": tunnelFront,
+  "furniture-tunnel-back": tunnelBack,
+  "furniture-tunnel-left": tunnelLeft,
+  "furniture-hideout-front": hideoutFront,
+  "furniture-hideout-back": hideoutBack,
+  "furniture-hideout-left": hideoutLeft,
   "icon-rotate": iconRotate,
   "icon-move": iconMove,
   "icon-save": iconSave,

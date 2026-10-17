@@ -1,8 +1,8 @@
 import type { FurnitureRow } from "../../server/furniture.ts";
 import { EventBus } from "../game/eventBus.ts";
-import hayBedSprite from "../assets/sprites/furniture-hay_bed.png";
-import tunnelSprite from "../assets/sprites/furniture-tunnel.png";
-import hideoutSprite from "../assets/sprites/furniture-hideout.png";
+import hayBedSprite from "../assets/sprites/furniture-hay_bed-front.png";
+import tunnelSprite from "../assets/sprites/furniture-tunnel-front.png";
+import hideoutSprite from "../assets/sprites/furniture-hideout-front.png";
 
 const THUMBNAILS: Record<string, string> = {
   hay_bed: hayBedSprite,
