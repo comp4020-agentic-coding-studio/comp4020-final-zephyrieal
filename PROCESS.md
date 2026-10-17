@@ -411,3 +411,75 @@ catches the original bug by reverting the `OutdoorScene.ts` fix and
 confirming the test failed with the exact same `Cannot read properties of
 undefined (reading 'sys')` error, then restoring the fix and confirming
 both tests pass alongside all 27 pre-existing `spec/` tests.
+
+## Directional furniture: rotation swaps the sprite, not just the angle
+
+Reported directly, with a reference sprite sheet: rotating a piece of
+furniture should show a genuinely different side of it (front, back, left,
+right), not spin one square image on screen. Before this, `IndoorScene.ts`
+drew one `furniture-${kind}` texture and called `.setAngle(rotation)` on it
+--- visually fine for a plain box, but wrong for the hideout, whose front has
+a door and whose back doesn't.
+
+### Only 3 unique images per kind, not 4
+
+Comparing the reference sheet's left and right columns pixel-by-pixel showed
+they're exact horizontal mirrors of each other, not independently drawn art.
+So each kind got 3 new sprites (`-front`, `-back`, `-left`) instead of 4;
+`-right` is the `-left` texture with Phaser's `.setFlipX(true)`, not a
+fourth asset. `viewFor(kind, rotation)` in `src/server/furniture.ts` --- next
+to `footprintFor`, the same file `IndoorScene.ts` already imports placement
+logic from --- maps `Rotation` to `{ key, flipX }`: 0deg is front, 90deg is
+the mirrored left (i.e. right), 180deg is back, 270deg is left. This matches
+the order `ROTATIONS` already cycles through on each Rotate click, so the
+*button* behavior is unchanged; only what gets drawn at each stop changed.
+
+`IndoorScene.ts`'s two furniture-drawing sites (`renderGhost` for the
+buy/retrieve/edit preview, `redrawFurniture` for placed pieces) both swapped
+`.setAngle(rotation)` for `viewFor(...)` + `.setFlipX(...)`. Footprint math
+(`footprintFor`, tile collision, width/height swap on 90/270) is completely
+unchanged --- this was a rendering-only fix, and the existing
+`spec/furniture-edit.test.ts` rotation test (asserting `rotation`/`width`/
+`height` over HTTP) needed no edits and still passes.
+
+### New art
+
+9 new sprites total: `furniture-hay_bed-{front,back,left}.png`,
+`furniture-tunnel-{front,back,left}.png`, `furniture-hideout-{front,back,
+left}.png`, replacing the 3 old unsuffixed files (deleted once nothing
+imported them anymore). The hideout's existing front-facing door sprite
+became `-front` unchanged; its `-back` is the same silhouette with the door
+hole filled in to a plain wall; its `-left` is new art --- a side profile
+with the roof as a single diagonal slope down to a low overhang, rather than
+the front's full peaked roof. The hay bed's hay mound reads the same from
+front and back (confirmed against the reference sheet, where that row's four
+columns are already near-identical), so `-front` and `-back` are the same
+image; `-left` is a narrower rounded mound over a shorter crate face,
+matching the reference sheet's side columns. The tunnel's existing sprite
+(open dark holes at both ends) became `-front`; `-back` fills the holes in
+with the log's own wood tone (capped ends); `-left` is the same capped log
+compressed narrower, since a cylindrical log's side profile doesn't differ
+dramatically from its front/back the way the hideout's roofline does.
+
+`StoragePanel.tsx`'s thumbnail always shows the `-front` variant regardless
+of a stored item's actual rotation --- it's just an identifying icon, and
+tracking a stored piece's last-seen rotation for a 32x32 thumbnail isn't
+worth the complexity (CLAUDE.md's Scope principle). `ShopPanel.tsx` was left
+alone --- it was already text-only, no icon, and rotation doesn't apply
+before a piece is placed.
+
+### Testing a rendering change spec/ can't see
+
+Added `browser/furniture-rotation.spec.ts`. The obvious approach --- diffing
+raw screenshot bytes before and after rotating --- turned out not to
+distinguish the bug from the fix: rotating one square image 90 or 180
+degrees in a Phaser canvas changes plenty of individual pixel positions
+even when it's still wrong. What actually distinguishes "spun" from
+"swapped" is the *set of colors present*: a 180-degree spin of one image
+can rearrange pixels but can never introduce or remove a color, while a
+genuinely different sprite can (the hideout's door-hole color exists only
+in `-front`, never in `-back`). Verified both directions: reverted the
+`viewFor`/`setFlipX` change back to `.setAngle()` on one `-front` texture
+and confirmed the test failed with front and back showing exactly the same
+color set; restored the fix and confirmed it passes, alongside all 27
+pre-existing `spec/` tests and the two existing `browser/` tests.
