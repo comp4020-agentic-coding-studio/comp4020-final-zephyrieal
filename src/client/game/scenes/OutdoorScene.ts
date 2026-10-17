@@ -35,6 +35,7 @@ export class OutdoorScene extends Phaser.Scene {
   private onFlowersUpdated = () => this.redrawFlowers();
   private onConstructionUpdated = () => this.redrawConstructionSite();
   private onConstructionCelebrate = () => this.playCompletionEffect();
+  private onPlantRandom = () => this.attemptPlant(20 + Math.random() * 60, 20 + Math.random() * 60);
 
   constructor() {
     super("OutdoorScene");
@@ -57,10 +58,12 @@ export class OutdoorScene extends Phaser.Scene {
     EventBus.on("flowers-updated", this.onFlowersUpdated);
     EventBus.on("construction-updated", this.onConstructionUpdated);
     EventBus.on("construction-celebrate", this.onConstructionCelebrate);
+    EventBus.on("plant-random", this.onPlantRandom);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       EventBus.off("flowers-updated", this.onFlowersUpdated);
       EventBus.off("construction-updated", this.onConstructionUpdated);
       EventBus.off("construction-celebrate", this.onConstructionCelebrate);
+      EventBus.off("plant-random", this.onPlantRandom);
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -72,14 +75,12 @@ export class OutdoorScene extends Phaser.Scene {
       const y = (pointer.y / this.scale.height) * 100;
       this.attemptPlant(x, y);
     });
-
-    // A plain, always-available keyboard route to the same intent (CLAUDE.md:
-    // "controls should be keyboard-operable where practical") --- mirrors the
+    // "plant-random" itself is registered above with the other EventBus
+    // listeners this Scene cleans up on SHUTDOWN --- it's the plain,
+    // always-available keyboard route to the same intent (CLAUDE.md:
+    // "controls should be keyboard-operable where practical"), mirroring the
     // old meadow div's Enter/Space handler, which planted at a random point
     // since there's no cursor position to read from a key press.
-    EventBus.on("plant-random", () => {
-      this.attemptPlant(20 + Math.random() * 60, 20 + Math.random() * 60);
-    });
   }
 
   private attemptPlant(x: number, y: number) {
@@ -97,20 +98,27 @@ export class OutdoorScene extends Phaser.Scene {
     );
   }
 
+  // Always destroys and recreates, like redrawFlowers/redrawFurniture ---
+  // the earlier "create once, then just setTexture" version kept
+  // `this.constructionSite` pointing at a sprite from the *previous* time
+  // this Scene ran. Phaser reuses the same Scene instance across
+  // stop()/start() (switching views doesn't construct a fresh OutdoorScene),
+  // but stop() destroys every GameObject the Scene owned --- so the old
+  // sprite was already dead by the time this ran again, and calling
+  // setTexture() on it threw, aborting the rest of create() (including the
+  // click-to-plant and keyboard handlers registered further down).
   private redrawConstructionSite() {
+    this.constructionSite?.destroy();
+
     const key = stageKeyFor(sanctuaryState.construction);
     const x = (this.scale.width * CONSTRUCTION_SITE_X_PERCENT) / 100;
     const y = (this.scale.height * CONSTRUCTION_SITE_Y_PERCENT) / 100;
 
-    if (!this.constructionSite) {
-      this.constructionSite = this.add.image(x, y, key).setInteractive();
-      this.constructionSite.on("pointerdown", () => {
-        this.suppressNextSceneClick = true;
-        EventBus.emit("open-construction-panel");
-      });
-    } else {
-      this.constructionSite.setTexture(key);
-    }
+    this.constructionSite = this.add.image(x, y, key).setInteractive();
+    this.constructionSite.on("pointerdown", () => {
+      this.suppressNextSceneClick = true;
+      EventBus.emit("open-construction-panel");
+    });
   }
 
   // Simple and brief on purpose (CLAUDE.md: respect reduced-motion for
