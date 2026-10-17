@@ -357,3 +357,57 @@ from in a terminal, not a feature visitors see. Keeping it to one helper
 function and call sites at each existing route kept this from growing into a
 second event system alongside the WebSocket broadcasts that already exist for
 a different purpose (informing other connected clients, not auditing).
+
+## A reported bug: the house disappeared after going back outside
+
+Reported directly: click "Go inside," then "Go back outside," and the
+construction site sprite in the meadow was simply gone --- for the rest of
+that session, not just a flash. Reproduced with a real headless browser
+(Playwright, since `spec/`'s HTTP+WS harness never renders Phaser or the
+DOM --- see `spec/README.md`), which caught an uncaught exception the moment
+`OutdoorScene` was re-created: `Cannot read properties of undefined (reading
+'sys')`, thrown from `redrawConstructionSite()`.
+
+### Root cause: a Scene instance isn't reconstructed on re-entry
+
+Phaser reuses the same `OutdoorScene` *object* across `stop()`/`start()` ---
+`PhaserGame.tsx`'s view switch never constructs a fresh Scene --- but
+`stop()` destroys every GameObject the Scene owned. `redrawFlowers()` and
+`redrawFurniture()` already handled this correctly (unconditionally destroy
+whatever's there, then recreate), but `redrawConstructionSite()` instead
+checked `if (!this.constructionSite)` and, finding the class field still set
+from the *previous* time the Scene ran, called `.setTexture()` on a sprite
+that `stop()` had already destroyed. That threw partway through `create()`,
+which also aborted every handler registered later in the same function ---
+the meadow's click-to-plant and keyboard handlers never got (re-)registered
+for the rest of the session, not just the construction sprite.
+
+Fixed by making `redrawConstructionSite()` match the other two: destroy
+`this.constructionSite` unconditionally, then always recreate it.
+
+### A second bug, same root cause: a leaked EventBus listener
+
+While reproducing the first bug in a browser, three round trips into the
+house and back followed by one "Plant a flower" click fired four identical
+`POST /api/plant` requests, not one. `EventBus.on("plant-random", ...)` was
+registered inline in `create()` with an anonymous callback, and --- unlike
+every other listener `create()` registers --- was never removed in the
+Scene's `SHUTDOWN` cleanup. `EventBus` lives outside any one Scene, so
+nothing else ever cleared it either: each visit added another listener,
+and one click fired all of them. Fixed by naming the handler
+(`onPlantRandom`, same pattern as the Scene's other bound callbacks) and
+adding its `EventBus.off` alongside the existing three in the `SHUTDOWN`
+block. `this.input` listeners didn't need the same fix --- Phaser's own
+`InputPlugin.shutdown()` already clears those per Scene instance.
+
+### Browser testing didn't exist in this repo before this
+
+Neither bug could have been caught by `spec/`, by design (no Phaser/DOM
+rendering in that harness). Added a Playwright suite at `browser/` instead,
+kept deliberately separate from `pnpm check`/CI (the Docker image CI builds
+and checks has no browser in it) --- see `spec/README.md` and
+`browser/scene-lifecycle.spec.ts`. Verified the regression test actually
+catches the original bug by reverting the `OutdoorScene.ts` fix and
+confirming the test failed with the exact same `Cannot read properties of
+undefined (reading 'sys')` error, then restoring the fix and confirming
+both tests pass alongside all 27 pre-existing `spec/` tests.

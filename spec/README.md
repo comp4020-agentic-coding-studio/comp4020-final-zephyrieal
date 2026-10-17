@@ -52,3 +52,16 @@ running `pnpm check` many times in a row against the *same* local
 (`findFreeTile` throws "the house is full" rather than failing silently).
 CI never sees this (`--tmpfs /data` starts empty every run); locally, delete
 `data/sanctuary.db` and restart the server for a clean slate.
+
+## What `spec/` can't see: a separate browser suite
+
+Everything above is HTTP+WS against a running app --- no Phaser, no DOM, no
+real browser. That's structurally blind to a whole class of bug: a Phaser
+Scene instance surviving a `stop()`/`start()` cycle (switching between the
+meadow and the house never constructs a fresh Scene) with a stale
+GameObject reference or a leaked cross-scene event listener. `browser/`
+(run with `pnpm test:browser`, Playwright against a real headless Chromium)
+exists for exactly that --- see `browser/scene-lifecycle.spec.ts` for the bug
+it was written to catch. Not part of `pnpm check`/CI, which runs the built
+Docker image with no browser available; run it locally before relying on a
+cross-scene UI change at a crit.
