@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { PROJECTS } from "./construction.ts";
 
 // One file on the Fly volume (mounted at /data) is the whole persistence
 // story for now: no separate database server, one small machine. Locally it
@@ -165,6 +166,24 @@ db.exec(`
   ON construction_contributions (visitor_id);
 `);
 
+// Multiple cooperative build projects (see
+// docs/decisions/0004-multiple-construction-projects.md): `project_id`
+// didn't exist when this table was first created (there was only ever one
+// project), so a database from before this week needs it added and its
+// existing rows backfilled to the one project that existed then --- same
+// `PRAGMA table_info` guard as the furniture migration above, since SQLite
+// has no `ADD COLUMN IF NOT EXISTS` and running it twice would throw.
+const contributionColumns = (
+  db.prepare("PRAGMA table_info(construction_contributions)").all() as { name: string }[]
+).map((c) => c.name);
+if (!contributionColumns.includes("project_id")) {
+  db.exec("ALTER TABLE construction_contributions ADD COLUMN project_id TEXT NOT NULL DEFAULT 'guinea-pig-house'");
+}
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_construction_contributions_project
+  ON construction_contributions (project_id);
+`);
+
 // Potato is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.
@@ -176,14 +195,19 @@ if (!existing) {
   ).run();
 }
 
-// One shared house to build, like the one shared guinea pig --- never a
+// Every cooperative build site, like the one shared guinea pig --- never a
 // per-visitor or per-session project (see CLAUDE.md, "one shared world").
-const existingProject = db
-  .prepare("SELECT id FROM construction_projects WHERE id = ?")
-  .get("guinea-pig-house");
-if (!existingProject) {
-  db.prepare(
-    `INSERT INTO construction_projects (id, progress_units, status, had_cooperative_moment)
-     VALUES ('guinea-pig-house', 0, 'in_progress', 0)`,
-  ).run();
+// Each entry in PROJECTS (src/server/construction.ts) is seeded exactly
+// once, the same idempotent check-then-insert as the guinea pig above;
+// existing projects from before this week are untouched.
+for (const project of PROJECTS) {
+  const existingProject = db
+    .prepare("SELECT id FROM construction_projects WHERE id = ?")
+    .get(project.id);
+  if (!existingProject) {
+    db.prepare(
+      `INSERT INTO construction_projects (id, progress_units, status, had_cooperative_moment)
+       VALUES (?, 0, 'in_progress', 0)`,
+    ).run(project.id);
+  }
 }

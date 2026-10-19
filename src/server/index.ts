@@ -18,7 +18,7 @@ import {
   type Rotation,
   FEED_REWARD,
 } from "./furniture.ts";
-import { contribute, getConstructionState } from "./construction.ts";
+import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
 
 declare global {
@@ -103,7 +103,9 @@ app.get("/api/state", (req: Request, res: Response) => {
   const furniture = getFurniture(db);
   const storedFurniture = getStoredFurniture(db);
   const carePoints = getBalance(db, req.visitorId);
-  const construction = getConstructionState(db);
+  const construction = Object.fromEntries(
+    PROJECTS.map((p) => [p.id, getConstructionState(db, p.id)]),
+  );
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
@@ -347,19 +349,24 @@ app.post("/api/plant", (req: Request, res: Response) => {
 // src/server/construction.ts and
 // docs/decisions/0003-construction-concurrency.md.
 app.post("/api/construction/contribute", (req: Request, res: Response) => {
-  const { requestId } = req.body as { requestId?: unknown };
+  const { projectId, requestId } = req.body as { projectId?: unknown; requestId?: unknown };
+  if (typeof projectId !== "string" || projectId.length === 0 || !isKnownProject(projectId)) {
+    res.status(400).json({ ok: false, reason: "projectId (string, a known construction project) is required" });
+    return;
+  }
   if (typeof requestId !== "string" || requestId.length === 0) {
     res.status(400).json({ ok: false, reason: "requestId (string) is required" });
     return;
   }
 
-  const result = contribute(db, req.visitorId, requestId);
+  const result = contribute(db, req.visitorId, projectId, requestId);
   if (!result.ok) {
-    logAction(req.visitorId, "construction-contribute-denied", { reason: result.reason });
+    logAction(req.visitorId, "construction-contribute-denied", { projectId, reason: result.reason });
     res.status(409).json(result);
     return;
   }
   logAction(req.visitorId, result.replay ? "construction-contribute-replay" : "construction-contributed", {
+    projectId,
     unitsAwarded: result.unitsAwarded,
     progressUnits: result.progressUnits,
     activeBuilders: result.activeBuilders,
@@ -369,6 +376,7 @@ app.post("/api/construction/contribute", (req: Request, res: Response) => {
   res.json(result);
   broadcast({
     type: "construction-progress",
+    projectId,
     progressUnits: result.progressUnits,
     targetUnits: result.targetUnits,
     status: result.status,
@@ -408,13 +416,16 @@ attachRealtime(httpServer);
 // triggers its own push); a builder going quiet for 5s has no contribution
 // event of its own to push on, so nothing else would ever tell other
 // visitors the multiplier just dropped. This is the only thing this tick is
-// for --- it broadcasts only when the active-builder count actually changed
-// since the last tick, not on every tick.
-let lastBroadcastActiveBuilders = -1;
+// for --- it broadcasts only when a given project's active-builder count
+// actually changed since that project's own last tick, not on every tick,
+// and tracks each project independently.
+const lastBroadcastActiveBuilders = new Map<string, number>();
 setInterval(() => {
-  const snapshot = getConstructionState(db);
-  if (snapshot.activeBuilders !== lastBroadcastActiveBuilders) {
-    lastBroadcastActiveBuilders = snapshot.activeBuilders;
-    broadcast({ type: "construction-progress", ...snapshot });
+  for (const { id: projectId } of PROJECTS) {
+    const snapshot = getConstructionState(db, projectId);
+    if (snapshot.activeBuilders !== lastBroadcastActiveBuilders.get(projectId)) {
+      lastBroadcastActiveBuilders.set(projectId, snapshot.activeBuilders);
+      broadcast({ type: "construction-progress", projectId, ...snapshot });
+    }
   }
 }, 1000);
