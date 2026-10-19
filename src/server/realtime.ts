@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 import { logAction } from "./log.ts";
+import { verifyVisitorCookie } from "./identity.ts";
 
 // Server -> client push only. Purchases and other mutations still go over
 // the existing HTTP intent endpoints (/api/feed, /api/plant,
@@ -11,14 +12,6 @@ import { logAction } from "./log.ts";
 
 const connections = new Map<string, Set<WebSocket>>(); // visitorId -> open sockets
 
-// By the time client JS opens a socket, an earlier HTTP page load has already
-// minted the `visitor=<uuid>` cookie (the Express middleware in index.ts runs
-// on every request, including the first static asset fetch), so the upgrade
-// request already carries it --- no separate handshake-time minting needed.
-function parseVisitorId(cookieHeader: string | undefined): string | undefined {
-  return (cookieHeader ?? "").match(/visitor=([a-f0-9-]+)/)?.[1];
-}
-
 export function attachRealtime(httpServer: Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -27,7 +20,15 @@ export function attachRealtime(httpServer: Server): void {
       socket.destroy();
       return;
     }
-    const visitorId = parseVisitorId(req.headers.cookie);
+    // By the time client JS opens a socket, an earlier HTTP page load has
+    // already minted and signed the visitor cookie (the Express middleware
+    // in index.ts runs on every request, including the first static asset
+    // fetch), so the upgrade request already carries a verifiable one --- no
+    // separate handshake-time minting needed. A WS upgrade can't itself set
+    // a cookie, so a missing or forged one here is rejected outright rather
+    // than silently minted: see src/server/identity.ts, the one place both
+    // this file and index.ts now verify the same signed cookie.
+    const visitorId = verifyVisitorCookie(req.headers.cookie);
     if (!visitorId) {
       socket.destroy();
       return;

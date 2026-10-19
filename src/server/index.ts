@@ -20,6 +20,7 @@ import {
 } from "./furniture.ts";
 import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
+import { mintVisitorCookie, verifyVisitorCookie, VISITOR_COOKIE_MAX_AGE } from "./identity.ts";
 
 declare global {
   namespace Express {
@@ -38,7 +39,8 @@ app.use(express.json());
 
 // Anonymous, persistent-per-browser identity: no accounts, no passwords. A
 // returning visitor keeps the same id for as long as they keep the cookie;
-// a stranger with no cookie gets a fresh one. See README, "A world that
+// a stranger with no cookie --- or one whose signature doesn't verify, see
+// src/server/identity.ts --- gets a fresh one. See README, "A world that
 // remembers" --- the id exists so a trace can be attributed to *a* visitor,
 // not so visitors can be told apart in any stronger sense than that.
 //
@@ -53,13 +55,21 @@ app.use(express.json());
 // request, including the first one, gets an identity before anything else
 // runs.
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const cookie = req.headers.cookie ?? "";
-  const existing = cookie.match(/visitor=([a-f0-9-]+)/)?.[1];
-  const visitorId = existing ?? randomUUID();
-  if (!existing) {
-    res.setHeader("Set-Cookie", `visitor=${visitorId}; Path=/; Max-Age=31536000; SameSite=Lax`);
+  const verified = verifyVisitorCookie(req.headers.cookie);
+  if (verified) {
+    req.visitorId = verified;
+  } else {
+    const { id, cookieValue } = mintVisitorCookie();
+    res.setHeader("Set-Cookie", `visitor=${cookieValue}; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE}; SameSite=Lax`);
+    req.visitorId = id;
+    // A cookie that was present but failed verification is a forged or
+    // stale (pre-signing) value, not just an absent one --- worth its own
+    // event for the crit's "permission or validation failure" log, distinct
+    // from the ordinary first-visit mint every new visitor also triggers.
+    if (req.headers.cookie) {
+      logAction(id, "visitor-identity-rejected", { reason: "signature invalid or missing" });
+    }
   }
-  req.visitorId = visitorId;
   next();
 });
 
@@ -154,10 +164,9 @@ app.post("/api/furniture/place", (req: Request, res: Response) => {
     typeof requestId !== "string" ||
     requestId.length === 0
   ) {
-    res.status(400).json({
-      ok: false,
-      reason: "kind (string), tileX/tileY (integers) and requestId (string) are required",
-    });
+    const reason = "kind (string), tileX/tileY (integers) and requestId (string) are required";
+    logAction(req.visitorId, "furniture-place-rejected", { reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
 
@@ -209,11 +218,9 @@ app.post("/api/furniture/edit", (req: Request, res: Response) => {
     typeof requestId !== "string" ||
     requestId.length === 0
   ) {
-    res.status(400).json({
-      ok: false,
-      reason:
-        "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required",
-    });
+    const reason = "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required";
+    logAction(req.visitorId, "furniture-edit-rejected", { reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
 
@@ -251,10 +258,9 @@ app.post("/api/furniture/store", (req: Request, res: Response) => {
     typeof requestId !== "string" ||
     requestId.length === 0
   ) {
-    res.status(400).json({
-      ok: false,
-      reason: "id, version (integers) and requestId (string) are required",
-    });
+    const reason = "id, version (integers) and requestId (string) are required";
+    logAction(req.visitorId, "furniture-store-rejected", { reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
 
@@ -294,11 +300,9 @@ app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
     typeof requestId !== "string" ||
     requestId.length === 0
   ) {
-    res.status(400).json({
-      ok: false,
-      reason:
-        "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required",
-    });
+    const reason = "id, tileX, tileY, version (integers), rotation (0/90/180/270) and requestId (string) are required";
+    logAction(req.visitorId, "furniture-retrieve-rejected", { reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
 
@@ -325,6 +329,7 @@ app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
 app.post("/api/plant", (req: Request, res: Response) => {
   const { x, y } = req.body as { x?: unknown; y?: unknown };
   if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+    logAction(req.visitorId, "plant-rejected", { reason: "x and y must be numbers" });
     res.status(400).json({ error: "x and y must be numbers" });
     return;
   }
@@ -351,11 +356,15 @@ app.post("/api/plant", (req: Request, res: Response) => {
 app.post("/api/construction/contribute", (req: Request, res: Response) => {
   const { projectId, requestId } = req.body as { projectId?: unknown; requestId?: unknown };
   if (typeof projectId !== "string" || projectId.length === 0 || !isKnownProject(projectId)) {
-    res.status(400).json({ ok: false, reason: "projectId (string, a known construction project) is required" });
+    const reason = "projectId (string, a known construction project) is required";
+    logAction(req.visitorId, "construction-contribute-rejected", { reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
   if (typeof requestId !== "string" || requestId.length === 0) {
-    res.status(400).json({ ok: false, reason: "requestId (string) is required" });
+    const reason = "requestId (string) is required";
+    logAction(req.visitorId, "construction-contribute-rejected", { projectId, reason });
+    res.status(400).json({ ok: false, reason });
     return;
   }
 
@@ -372,6 +381,12 @@ app.post("/api/construction/contribute", (req: Request, res: Response) => {
     activeBuilders: result.activeBuilders,
     justCompleted: result.justCompleted,
   });
+  // A named event of its own, not just the justCompleted flag buried in the
+  // line above --- "construction completed" is one of the crit's required
+  // events to be able to point at directly while narrating logs live.
+  if (result.justCompleted) {
+    logAction(req.visitorId, "construction-completed", { projectId, progressUnits: result.progressUnits });
+  }
 
   res.json(result);
   broadcast({
