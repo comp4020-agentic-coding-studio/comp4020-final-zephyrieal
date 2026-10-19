@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";
 import { connectAs } from "./ws-client.ts";
 import { findFreeTile } from "./tile-finder.ts";
+import { cookieFor } from "./identity.ts";
 
 // Scenario 6: a visitor who disconnects while someone else changes the house
 // gets the latest layout on reconnect, without manually reloading. The real
@@ -11,10 +12,6 @@ import { findFreeTile } from "./tile-finder.ts";
 // that: a fresh connection followed by the same state-hydration request the
 // client always makes right after opening.
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function feedUntil(visitorId: string, minBalance: number): Promise<void> {
   let balance = 0;

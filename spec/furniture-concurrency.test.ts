@@ -2,15 +2,12 @@ import { expect, inject, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";
 import { findFreeTile } from "./tile-finder.ts";
+import { cookieFor } from "./identity.ts";
 
 // Scenario 4: two visitors attempt overlapping furniture at the same
 // moment. The shared target tile is found dynamically (see tile-finder.ts)
 // so this is safe to rerun against an already-populated house.
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function feedUntil(visitorId: string, minBalance: number): Promise<number> {
   let balance = 0;

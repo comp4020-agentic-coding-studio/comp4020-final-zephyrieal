@@ -1,6 +1,7 @@
 import { expect, inject, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { connectAs, nextMessage } from "./ws-client.ts";
+import { cookieFor } from "./identity.ts";
 
 // The cooperative house-construction minigame: solo contribution, replay
 // safety, rate limiting, the teamwork multiplier, a builder dropping out
@@ -39,10 +40,6 @@ const DEFAULT_PROJECT = "guinea-pig-house";
 const UNITS_BY_ACTIVE_BUILDERS = [0, 100, 150, 200, 250]; // mirrors construction.ts's own table
 function unitsFor(activeBuilders: number): number {
   return UNITS_BY_ACTIVE_BUILDERS[Math.min(Math.max(activeBuilders, 1), 4)];
-}
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
 }
 
 async function contribute(visitorId: string, projectId = DEFAULT_PROJECT, requestId = randomUUID()) {

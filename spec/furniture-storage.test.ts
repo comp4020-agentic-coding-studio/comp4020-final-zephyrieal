@@ -3,16 +3,13 @@ import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";
 import { connectAs, nextMessage } from "./ws-client.ts";
 import { findFreeTile } from "./tile-finder.ts";
+import { cookieFor } from "./identity.ts";
 
 // Storing a placed piece moves it into a shared pool instead of deleting it;
 // retrieving it back is free for whoever does it, for anyone. See
 // docs/decisions/0002-furniture-editing-concurrency.md for why a concurrent
 // retrieve race has exactly one winner.
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function feedUntil(visitorId: string, minBalance: number): Promise<number> {
   let balance = 0;

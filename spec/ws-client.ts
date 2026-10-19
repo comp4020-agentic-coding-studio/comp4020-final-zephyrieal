@@ -7,11 +7,15 @@
 // (src/server/realtime.ts) rather than adding a new dependency just for
 // tests.
 import WebSocket from "ws";
+import { cookieFor } from "./identity.ts";
 
 export function connectAs(baseUrl: string, visitorId: string): Promise<WebSocket> {
   const url = new URL("/ws", baseUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(url, { headers: { cookie: `visitor=${visitorId}` } });
+  // realtime.ts now verifies this cookie's signature (src/server/identity.ts)
+  // rather than trusting a bare `visitor=<id>` --- an unsigned value here
+  // would get the upgrade rejected outright instead of simulating a visitor.
+  const ws = new WebSocket(url, { headers: { cookie: cookieFor(visitorId) } });
   return new Promise((resolve, reject) => {
     ws.once("open", () => resolve(ws));
     ws.once("error", reject);

@@ -3,15 +3,12 @@ import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";
 import { connectAs, nextMessage } from "./ws-client.ts";
 import { findFreeTile } from "./tile-finder.ts";
+import { cookieFor } from "./identity.ts";
 
 // Moving and rotating an existing piece: free, excludes the piece's own
 // current tiles from collision checks, and is guarded by a `version` field
 // rather than a lock --- see docs/decisions/0002-furniture-editing-concurrency.md.
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function feedUntil(visitorId: string, minBalance: number): Promise<number> {
   let balance = 0;

@@ -3,16 +3,13 @@ import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";
 import { connectAs, nextMessage } from "./ws-client.ts";
 import { findFreeTile } from "./tile-finder.ts";
+import { cookieFor } from "./identity.ts";
 
 // Scenarios 2 and 3. Tile coordinates are found dynamically against whatever
 // the house currently looks like (see tile-finder.ts) rather than hardcoded,
 // so these stay correct whether this is a fresh database (CI) or a local dev
 // database that already has furniture in it from earlier runs.
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function currentFurniture() {
   return fetch(new URL("/api/state", baseUrl))

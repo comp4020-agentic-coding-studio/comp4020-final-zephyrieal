@@ -1,19 +1,19 @@
 import { expect, inject, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { FEED_REWARD } from "../src/server/furniture.ts";
+import { cookieFor } from "./identity.ts";
 
 // Scenario 1: individual Care Points. Each visitor's balance is attributed
-// to the same anonymous `visitor=<uuid>` cookie flowers/feeding already use
-// --- there's no auto cookie jar on Node's fetch, so a fixed, explicit
-// Cookie header per call is what makes "visitor A" and "visitor B" persist
-// across requests in this test (see spec/flowers.test.ts's convention of a
-// *missing* cookie standing in for "a different visitor"; here we pin one on
-// purpose instead, to check isolation rather than statelessness).
+// to the same anonymous `visitor=<uuid>.<signature>` cookie flowers/feeding
+// already use (see spec/identity.ts --- the signature is what makes this a
+// cookie the server's identity middleware actually accepts as that visitor,
+// not just any string) --- there's no auto cookie jar on Node's fetch, so a
+// fixed, explicit Cookie header per call is what makes "visitor A" and
+// "visitor B" persist across requests in this test (see spec/flowers.test.ts's
+// convention of a *missing* cookie standing in for "a different visitor";
+// here we pin one on purpose instead, to check isolation rather than
+// statelessness).
 const baseUrl = inject("baseUrl");
-
-function cookieFor(visitorId: string) {
-  return `visitor=${visitorId}`;
-}
 
 async function stateFor(visitorId: string) {
   return fetch(new URL("/api/state", baseUrl), { headers: { cookie: cookieFor(visitorId) } }).then(
