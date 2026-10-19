@@ -38,6 +38,16 @@ function stageKeyFor(
 export class OutdoorScene extends Phaser.Scene {
   private flowerSprites: Phaser.GameObjects.Image[] = [];
   private constructionSites = new Map<string, Phaser.GameObjects.Image>();
+  private guineaPigSprite?: Phaser.GameObjects.Image;
+  // CLAUDE.md's Accessibility section asks to "respect reduced-motion
+  // preferences for animation that isn't load-bearing" --- Potato's own
+  // position update is load-bearing (it's the server's authoritative
+  // state), but the glide between two points is purely cosmetic, so this is
+  // the one thing actually gated on it. Read once in create(): a live
+  // preference change mid-session would need its own matchMedia listener,
+  // which isn't worth the complexity for a setting visitors set once in
+  // their OS/browser, not mid-visit.
+  private reducedMotion = false;
   // Set by a construction site's own pointerdown just before it opens the
   // panel, so the scene-wide pointerdown (which would otherwise try to
   // plant a flower at that same click) ignores it once and clears the flag
@@ -47,6 +57,7 @@ export class OutdoorScene extends Phaser.Scene {
   private onFlowersUpdated = () => this.redrawFlowers();
   private onConstructionUpdated = (projectId: string) => this.redrawConstructionSite(projectId);
   private onConstructionCelebrate = (projectId: string) => this.playCompletionEffect(projectId);
+  private onGuineaPigMoved = () => this.animateGuineaPigToTarget();
   private onPlantRandom = () => this.attemptPlant(20 + Math.random() * 60, 20 + Math.random() * 60);
 
   constructor() {
@@ -60,21 +71,36 @@ export class OutdoorScene extends Phaser.Scene {
       .rectangle(width / 2, height / 2, width - 4, height - 4)
       .setStrokeStyle(2, 0x9ab98c);
 
-    // Potato has no server-side position (no autonomous AI this week, per
-    // CLAUDE.md) --- a fixed, calm spot is enough to put a face on the stats
-    // text shown alongside the canvas.
-    this.add.image((width * 50) / 100, (height * 50) / 100, "guinea-pig");
+    this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+    // Potato wanders the meadow on her own (CLAUDE.md: "the guinea pig
+    // decides what it does" --- never direct player control) --- the server
+    // decides where and when (src/server/guinea-pig.ts), this scene only
+    // ever renders wherever sanctuaryState.guineaPigMovement already says
+    // she is, same as every other piece of shared state here. Starting from
+    // whatever's already known (not a hardcoded 50/50) means a visitor who
+    // switches back from IndoorScene sees her already correctly placed,
+    // mid-walk or paused, not snapped back to a default spot.
+    const start = sanctuaryState.guineaPigMovement ?? { x: 50, y: 50, targetX: 50, targetY: 50, startedAt: Date.now(), durationMs: 0 };
+    this.guineaPigSprite = this.add.image(
+      (width * start.x) / 100,
+      (height * start.y) / 100,
+      "guinea-pig",
+    );
+    this.animateGuineaPigToTarget();
 
     this.redrawFlowers();
     for (const site of CONSTRUCTION_SITES) this.redrawConstructionSite(site.projectId);
     EventBus.on("flowers-updated", this.onFlowersUpdated);
     EventBus.on("construction-updated", this.onConstructionUpdated);
     EventBus.on("construction-celebrate", this.onConstructionCelebrate);
+    EventBus.on("guinea-pig-moved", this.onGuineaPigMoved);
     EventBus.on("plant-random", this.onPlantRandom);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       EventBus.off("flowers-updated", this.onFlowersUpdated);
       EventBus.off("construction-updated", this.onConstructionUpdated);
       EventBus.off("construction-celebrate", this.onConstructionCelebrate);
+      EventBus.off("guinea-pig-moved", this.onGuineaPigMoved);
       EventBus.off("plant-random", this.onPlantRandom);
     });
 
@@ -97,6 +123,42 @@ export class OutdoorScene extends Phaser.Scene {
 
   private attemptPlant(x: number, y: number) {
     EventBus.emit("attempt-plant", { x, y, requestId: crypto.randomUUID() });
+  }
+
+  // Walks the sprite from wherever it currently is to the server's latest
+  // target, over whatever time is left in that walk --- not the walk's full
+  // original duration, since this fires again mid-walk every time a fresh
+  // "guinea-pig-moved" broadcast arrives (every ~1s while she's moving), and
+  // restarting the full duration each time would make her drift slower than
+  // the server actually intends. Under prefers-reduced-motion, skip the
+  // glide entirely and just place her exactly where the server says she is
+  // right now (CLAUDE.md's Accessibility section).
+  private animateGuineaPigToTarget() {
+    const sprite = this.guineaPigSprite;
+    const movement = sanctuaryState.guineaPigMovement;
+    if (!sprite || !movement) return;
+
+    const targetPixelX = (this.scale.width * movement.targetX) / 100;
+    const targetPixelY = (this.scale.height * movement.targetY) / 100;
+
+    if (movement.targetX < movement.x) sprite.setFlipX(true);
+    else if (movement.targetX > movement.x) sprite.setFlipX(false);
+
+    this.tweens.killTweensOf(sprite);
+
+    if (this.reducedMotion || movement.durationMs <= 0) {
+      sprite.setPosition(targetPixelX, targetPixelY);
+      return;
+    }
+
+    const remainingMs = Math.max(0, movement.durationMs - (Date.now() - movement.startedAt));
+    this.tweens.add({
+      targets: sprite,
+      x: targetPixelX,
+      y: targetPixelY,
+      duration: remainingMs,
+      ease: "Linear",
+    });
   }
 
   private redrawFlowers() {
@@ -131,9 +193,7 @@ export class OutdoorScene extends Phaser.Scene {
     const y = (this.scale.height * site.yPercent) / 100;
 
     const sprite = this.add.image(x, y, key).setInteractive();
-    console.log("DEBUG created site", projectId, "at", x, y, "key", key);
     sprite.on("pointerdown", () => {
-      console.log("DEBUG pointerdown fired for", projectId);
       this.suppressNextSceneClick = true;
       EventBus.emit("open-construction-panel", projectId);
     });

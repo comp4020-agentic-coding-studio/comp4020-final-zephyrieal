@@ -1,5 +1,6 @@
 import type { FurnitureRow } from "../../server/furniture.ts";
 import type { ConstructionSnapshot } from "../../server/construction.ts";
+import type { GuineaPigMovement } from "../../server/guinea-pig.ts";
 
 export interface FlowerRow {
   id: number;
@@ -16,4 +17,5 @@ export const sanctuaryState = {
   flowers: [] as FlowerRow[],
   furniture: [] as FurnitureRow[],
   construction: {} as Record<string, ConstructionSnapshot>,
+  guineaPigMovement: null as GuineaPigMovement | null,
 };

@@ -21,6 +21,7 @@ import {
 import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
 import { mintVisitorCookie, verifyVisitorCookie, VISITOR_COOKIE_MAX_AGE } from "./identity.ts";
+import { currentPosition as currentGuineaPigPosition, tick as tickGuineaPig } from "./guinea-pig.ts";
 
 declare global {
   namespace Express {
@@ -109,6 +110,12 @@ function getFlowers(): Flower[] {
 // waits for later weeks --- this is proof of life, not the finished app.
 app.get("/api/state", (req: Request, res: Response) => {
   const guineaPig = getPotato();
+  // Potato's current position in the meadow --- ephemeral, in-memory state
+  // kept separate from the guineaPig object above, which mirrors the
+  // persistent guinea_pigs table. See src/server/guinea-pig.ts and
+  // PROCESS.md's "Potato wanders the meadow" section for why her position
+  // isn't a database column.
+  const guineaPigMovement = currentGuineaPigPosition();
   const flowers = getFlowers();
   const furniture = getFurniture(db);
   const storedFurniture = getStoredFurniture(db);
@@ -119,7 +126,16 @@ app.get("/api/state", (req: Request, res: Response) => {
   const recentVisits = db
     .prepare("SELECT action, created_at FROM visits ORDER BY id DESC LIMIT 5")
     .all();
-  res.json({ guineaPig, flowers, furniture, storedFurniture, carePoints, construction, recentVisits });
+  res.json({
+    guineaPig,
+    guineaPigMovement,
+    flowers,
+    furniture,
+    storedFurniture,
+    carePoints,
+    construction,
+    recentVisits,
+  });
 });
 
 // Feeding earns Care Points (CLAUDE.md's discussed exception) alongside the
@@ -433,7 +449,11 @@ attachRealtime(httpServer);
 // visitors the multiplier just dropped. This is the only thing this tick is
 // for --- it broadcasts only when a given project's active-builder count
 // actually changed since that project's own last tick, not on every tick,
-// and tracks each project independently.
+// and tracks each project independently. Potato's own walking decisions
+// (src/server/guinea-pig.ts) share this same one-second tick rather than
+// running a second timer --- there's no behavioral reason for her movement
+// to poll on a different cadence than construction's own "has anything
+// actually changed" check right above it.
 const lastBroadcastActiveBuilders = new Map<string, number>();
 setInterval(() => {
   for (const { id: projectId } of PROJECTS) {
@@ -442,5 +462,10 @@ setInterval(() => {
       lastBroadcastActiveBuilders.set(projectId, snapshot.activeBuilders);
       broadcast({ type: "construction-progress", projectId, ...snapshot });
     }
+  }
+
+  const movement = tickGuineaPig();
+  if (movement) {
+    broadcast({ type: "guinea-pig-walking", ...movement });
   }
 }, 1000);

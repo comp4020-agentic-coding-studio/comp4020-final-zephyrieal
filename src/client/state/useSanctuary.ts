@@ -4,6 +4,7 @@ import { EventBus } from "../game/eventBus.ts";
 import { sanctuaryState, type FlowerRow } from "../game/sanctuaryState.ts";
 import type { FurnitureRow } from "../../server/furniture.ts";
 import type { ConstructionSnapshot } from "../../server/construction.ts";
+import type { GuineaPigMovement } from "../../server/guinea-pig.ts";
 
 export interface GuineaPig {
   name: string;
@@ -14,6 +15,7 @@ export interface GuineaPig {
 
 interface StateResponse {
   guineaPig: GuineaPig;
+  guineaPigMovement: GuineaPigMovement;
   flowers: FlowerRow[];
   furniture: FurnitureRow[];
   storedFurniture: FurnitureRow[];
@@ -84,6 +86,15 @@ export function useSanctuary() {
     }
   }
 
+  // Write-through only --- nothing in React ever renders Potato's position
+  // (CLAUDE.md's Interface rule: communicate through behavior, not a stat
+  // readout), so there's no matching useState here, unlike applyConstruction.
+  // Phaser is the only reader, via sanctuaryState + this event.
+  function applyGuineaPigMovement(next: GuineaPigMovement) {
+    sanctuaryState.guineaPigMovement = next;
+    EventBus.emit("guinea-pig-moved");
+  }
+
   function flashRejection(reason: string) {
     setRejection(reason);
     clearTimeout(rejectionTimer.current);
@@ -94,6 +105,7 @@ export function useSanctuary() {
     const res = await fetch("/api/state");
     const data = (await res.json()) as StateResponse;
     setGuineaPig(data.guineaPig);
+    applyGuineaPigMovement(data.guineaPigMovement);
     setCarePoints(data.carePoints);
     applyFlowers(data.flowers);
     applyFurniture(data.furniture);
@@ -342,6 +354,15 @@ export function useSanctuary() {
             activeBuilders: msg.activeBuilders,
             multiplierUnits: msg.multiplierUnits,
             hadCooperativeMoment: msg.hadCooperativeMoment,
+          });
+        } else if (msg.type === "guinea-pig-walking") {
+          applyGuineaPigMovement({
+            x: msg.x,
+            y: msg.y,
+            targetX: msg.targetX,
+            targetY: msg.targetY,
+            startedAt: msg.startedAt,
+            durationMs: msg.durationMs,
           });
         }
       },

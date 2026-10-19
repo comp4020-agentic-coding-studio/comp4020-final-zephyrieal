@@ -20,6 +20,15 @@ export type RealtimeMessage =
       activeBuilders: number;
       multiplierUnits: number;
       hadCooperativeMoment: boolean;
+    }
+  | {
+      type: "guinea-pig-walking";
+      x: number;
+      y: number;
+      targetX: number;
+      targetY: number;
+      startedAt: number;
+      durationMs: number;
     };
 
 export interface RealtimeHandle {
