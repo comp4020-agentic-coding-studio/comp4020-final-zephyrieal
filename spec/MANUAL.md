@@ -73,3 +73,33 @@ drove a fresh project to completion (two cooperating visitors, one
 accepted click `justCompleted: true`, cooperative reward paid), restarted
 again, and confirmed `status` was still `completed` and a further
 contribution was still rejected with 409 --- pass both times.
+
+## Two-visitor crit walkthrough: logs narrate who did what
+
+`spec/identity-security.test.ts` covers the identity-signing mechanism
+itself over HTTP (distinct identities minted, forged/legacy cookies
+rejected, a correctly-signed cookie's identity persists). What it can't
+cover is whether the server's logs are actually *usable live*, at a crit,
+to narrate two real people's actions from a terminal alone --- that's a
+judgment about the logs' readability, not a thing to assert in `vitest`.
+
+1. Open the deployed app in two separate Chrome profiles (or one normal +
+   one incognito window, sharing no cookies).
+2. In a terminal, tail the server's logs (`mise exec -- flyctl logs -a
+   <repo>` for the deployed app, or just watch stdout for `pnpm start`
+   locally).
+3. From profile A: feed Potato, plant a flower, place one piece of
+   furniture, contribute to one construction project.
+4. From profile B: do the same four actions.
+5. Confirm, from the log output alone, with no clicking through either
+   profile's UI: each of the eight actions shows a distinct `visitor` id,
+   the two profiles' ids are consistently different from each other across
+   all four of their own actions, and the action name and any relevant
+   detail (balance, tile, project) are legible enough to narrate aloud.
+6. Attempt one action that should be rejected (e.g. place furniture with a
+   malformed body, or contribute past the project's completion) and
+   confirm a `*-rejected`/`*-denied` log line appears with a reason.
+
+Record the result (pass/fail, date, and which URL --- local or deployed ---
+this was run against) in `PROCESS.md`'s visitor-identity section before
+relying on this at a crit.

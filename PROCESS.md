@@ -483,3 +483,107 @@ in `-front`, never in `-back`). Verified both directions: reverted the
 and confirmed the test failed with front and back showing exactly the same
 color set; restored the fix and confirmed it passes, alongside all 27
 pre-existing `spec/` tests and the two existing `browser/` tests.
+
+## Multiple cooperative construction projects
+
+The single shared build (Potato's house) became five: the existing house
+unchanged, plus a toolshed, greenhouse, bridge and great hall, each with its
+own much larger target and its own 5-stage pixel art. See
+`docs/decisions/0004-multiple-construction-projects.md` for the full
+decision record --- why projects became config data instead of a hardcoded
+constant, the per-project active-builder/rate-limit keying, and the
+solo/group click-count arithmetic behind picking 50,000/200,000/500,000/
+2,000,000 as "a lot of clicks" rather than a literal million.
+
+`spec/construction.test.ts` was extended, not rewritten: every existing
+test keeps passing against the original `guinea-pig-house` project
+(the file's helpers default to it), plus one new test confirming a second
+project's progress and active-builder count are tracked independently.
+28 tests passed after this change, up from 27.
+
+## Visitor identity: closing a named, accepted gap
+
+ADR 003 named a real limitation when the cooperative construction
+multiplier first shipped: the visitor cookie is unsigned, so nothing stops
+a client from claiming any identity it likes. This was accepted at the
+time as out of scope for that feature. Crit 10's spec asked to actually
+close it, plus fill three logging gaps and document the permission model
+end to end --- see `docs/decisions/0005-visitor-identity-and-permissions.md`
+for the full account: what's individual vs. shared state, why the existing
+"anyone may act on shared state" model was already correct and gets no
+ownership check added to it, the alternatives considered (ownership checks,
+a full account system, a server-side session store) and why each was
+rejected, and the honest limitations of what signing an anonymous cookie
+does and doesn't guarantee.
+
+### What was already there
+
+Most of the logging the spec asked for already existed from crit 10's
+earlier logging pass: connect/disconnect, feed, plant, furniture place/
+edit/store/retrieve (success, denial, replay), and construction contribute
+(success, denial, replay). The permission model for shared state
+(furniture, flowers, construction) was already correct, since
+`editFurniture`/`storeFurniture`/`retrieveFurniture` don't even take a
+`visitorId` --- there was never an ownership check to accidentally bypass.
+Individual state (Care Points) was already protected, since every earn/
+spend call uses the server-derived `req.visitorId`, never a client-supplied
+field.
+
+### What was missing: three logging gaps, one real security gap
+
+The seven malformed-request (400) rejections across `index.ts` logged
+nothing at all; the Care Points payout for finishing a build
+(`grantConstructionRewards`) never logged; "construction completed" only
+showed up as a `justCompleted` flag buried inside the generic contribute
+log line. All three got a dedicated `logAction` call --- `*-rejected` for
+the 400s, `care-points-awarded` for the reward (guarded against re-logging
+an already-paid, idempotent-replay grant), and `construction-completed` as
+its own named event.
+
+The real gap was identity itself: `index.ts` and `realtime.ts` each
+independently regex-matched a plain `visitor=<uuid>` cookie with no
+verification. New module `src/server/identity.ts` is now the one place
+both files verify a cookie, which is now `visitor=<uuid>.<hmac-signature>`
+(`node:crypto`'s `createHmac`/`timingSafeEqual`, no new dependency). A
+cookie that's missing, malformed, or has a wrong signature is never
+trusted --- the server mints a fresh identity instead, exactly as it
+already did for "no cookie at all."
+
+### The rollout cost, confirmed deliberately
+
+Every visitor's existing unsigned cookie fails verification the moment
+this deploys, silently issuing them a new identity --- which means every
+visitor's Care Points balance resets. This was discussed and accepted
+rather than worked around: grandfathering old cookies in for a transition
+period would just reopen the same forgery window for as long as the grace
+period lasted.
+
+### Tests
+
+New `spec/identity-security.test.ts`: two fresh visitors get distinct
+identities; a correctly-signed cookie's identity persists across requests
+with no re-mint; an unsigned legacy cookie, a tampered signature, and a
+signature from the wrong secret are each rejected; a client can't award
+itself arbitrary Care Points via extra request fields. New test-only
+`spec/identity.ts` signs cookies the same way the server does (same
+`SESSION_SECRET` fallback), so the seven existing spec files that each
+defined their own `cookieFor` helper, plus `spec/ws-client.ts`'s
+`connectAs`, needed only to import the shared signer --- every call site
+(`cookieFor(visitorId)`) was untouched. Full suite: 34 tests passed (28
+existing + 6 new), confirming the signing change didn't regress anything
+that authenticates "visitor A"/"visitor B" via a cookie.
+
+Log correctness itself --- whether the output is actually narratable live
+at a crit --- isn't asserted in `spec/*.test.ts`; nothing in this suite
+captures server stdout, and this harness is HTTP+WS only, same structural
+gap `spec/MANUAL.md` already carves out for Phaser-rendering checks. See
+`spec/MANUAL.md`'s new "Two-visitor crit walkthrough" scenario.
+
+### What's still manual
+
+Two-visitor, two-Chrome-profile log narration against the deployed app ---
+see `spec/MANUAL.md`'s new scenario for the exact steps. Record pass/fail
+and date here once performed:
+
+<!-- Manually verified <date>: ... -->
+
