@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { earnCarePoints } from "./furniture.ts";
+import { logAction } from "./log.ts";
 
 // Every cooperative build project, like the one shared guinea pig (CLAUDE.md,
 // "one shared world") --- never a per-visitor or per-session build. Adding a
@@ -155,7 +156,20 @@ export function grantConstructionRewards(db: DatabaseSync, projectId: string, bo
     )
     .all(projectId) as { visitor_id: string }[];
   for (const { visitor_id } of eligible) {
-    earnCarePoints(db, visitor_id, bonus, `built ${config.name}`, `construction-reward:${projectId}:${visitor_id}`);
+    const { replay } = earnCarePoints(
+      db,
+      visitor_id,
+      bonus,
+      `built ${config.name}`,
+      `construction-reward:${projectId}:${visitor_id}`,
+    );
+    // Only the first (non-replay) grant is a real event worth logging ---
+    // this function is deliberately re-entrant (see the comment above), so
+    // every later call for an already-paid visitor would otherwise log the
+    // same reward over and over.
+    if (!replay) {
+      logAction(visitor_id, "care-points-awarded", { reason: `built ${config.name}`, bonus, projectId });
+    }
   }
 }
 
