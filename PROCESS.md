@@ -603,3 +603,67 @@ via `flyctl secrets list`):
 
 All four checks passed on the first attempt, no retries needed.
 
+## Potato wanders the meadow on her own
+
+Previously Potato was a single static sprite drawn once at a fixed 50/50
+point --- an explicit, deferred scope decision from an earlier week ("no
+autonomous AI this week"), not an oversight. CLAUDE.md requires she never
+be directly controlled ("the guinea pig decides what it does"), that every
+visitor see her in the same place at the same time (one shared world), and
+that the server --- not any one client --- owns "guinea pig state." This
+adds simple autonomous wandering: she picks a nearby point, walks there
+over a believable duration, pauses, repeats, server-decided and broadcast
+to everyone.
+
+**Ephemeral, not persistent.** Her exact position is transient,
+frequently-changing state, not something "presented to the visitor as
+permanent" the way furniture placement or Care Points are. It's the same
+category as construction's active-builder tracking (ADR 003): in-memory
+only, no new column, no migration, no extra SQLite writes every tick.
+Losing her mid-walk position on a restart and reappearing at the meadow's
+center is not a broken promise to anyone. `src/server/guinea-pig.ts` keeps
+a single module-level `state` object and nothing else.
+
+**No new CLAUDE.md exception needed.** Nothing new is shown as a number or
+label --- no "Potato is walking," no coordinates. The only visible change
+is the sprite itself moving, which is exactly the "Bean approaches, Bean
+sleeps nearby" example CLAUDE.md already gives for communicating through
+behaviour rather than stats.
+
+**Testing without fake timers or wall-clock waits.** Every other test in
+this repo that needs time to pass either uses a real `setTimeout` wait
+(`spec/construction.test.ts`'s own comment: "Real wall-clock wait --- no
+fake timers exist anywhere in this repo") or avoids the question entirely.
+`guinea-pig.ts`'s core functions (`pickNextTarget`, `currentPosition`,
+`tick`) take `now`/`random` as plain arguments instead of reading
+`Date.now()`/`Math.random()` internally, so `spec/guinea-pig.test.ts` can
+drive them with fixed values and assert exact behaviour with no waiting at
+all. This sidesteps the constraint rather than working within it --- a
+meaningfully cheaper pattern than the existing wall-clock-wait tests, worth
+reusing for any future feature that needs to unit-test something
+time-dependent.
+
+**First real enforcement of `prefers-reduced-motion`.** CLAUDE.md's
+Accessibility section has asked to "respect reduced-motion preferences for
+animation that isn't load-bearing" since the project started, but nothing
+in the codebase actually checked it until now --- it was a principle on
+paper only. `OutdoorScene.ts` reads
+`window.matchMedia("(prefers-reduced-motion: reduce)").matches` once in
+`create()`; when true, Potato's position updates snap instantly instead of
+tweening. Potato's position itself is load-bearing (it's the server's
+authoritative state); only the cosmetic glide between two points is
+gated.
+
+**Verification:** `pnpm check` (39 tests: 34 existing + 5 new, all
+passing; typecheck clean). Manual browser check against a production build
+(`pnpm build && node src/server/index.ts`, since `pnpm dev`'s Vite server
+has a pre-existing, unrelated cookie-minting race that breaks the very
+first WS connection in local dev only):
+- Potato visible on load, drifting to a new position within a few seconds
+  with no click, confirmed across three screenshots taken ~3s apart.
+- Two independent, cookie-isolated browser contexts loaded at the same
+  time showed her in the exact same position at the same instant ---
+  confirming one shared world, not a per-client simulation.
+- With `prefers-reduced-motion: reduce` emulated, her position updated
+  with no glide, matching the intended snap behaviour.
+
