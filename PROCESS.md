@@ -579,11 +579,27 @@ captures server stdout, and this harness is HTTP+WS only, same structural
 gap `spec/MANUAL.md` already carves out for Phaser-rendering checks. See
 `spec/MANUAL.md`'s new "Two-visitor crit walkthrough" scenario.
 
-### What's still manual
+### Deployment verification
 
-Two-visitor, two-Chrome-profile log narration against the deployed app ---
-see `spec/MANUAL.md`'s new scenario for the exact steps. Record pass/fail
-and date here once performed:
+Manually verified 2026-10-19 against the live deployed app
+(`comp4020-final-zephyrieal.fly.dev`), with `SESSION_SECRET` set as a real
+Fly secret before this deploy (`flyctl secrets set`, confirmed `Deployed`
+via `flyctl secrets list`):
 
-<!-- Manually verified <date>: ... -->
+- Two independent browser contexts (sharing no cookies, the same isolation
+  two separate Chrome profiles would give) each loaded the app and were
+  issued distinct, properly signed `visitor=<uuid>.<signature>` cookies.
+- Each fed Potato and planted a flower. `flyctl logs` showed both visitors'
+  actions clearly and distinctly: `connected` → `fed-potato` (balance 10)
+  → `planted-flower` (with coordinates) → `disconnected`, for each of the
+  two visitor ids, fully narratable from the log lines alone.
+- A malformed `/api/plant` request logged `plant-rejected` with its reason,
+  attributed to the (fresh) visitor id that made the request.
+- A forged, unsigned `visitor=<uuid>` cookie (the pre-signing format) was
+  rejected: the server minted a different, properly signed identity rather
+  than adopting the claimed one, and logged `visitor-identity-rejected`
+  with a reason --- confirmed both via the HTTP response's `Set-Cookie`
+  header and the corresponding log line.
+
+All four checks passed on the first attempt, no retries needed.
 
