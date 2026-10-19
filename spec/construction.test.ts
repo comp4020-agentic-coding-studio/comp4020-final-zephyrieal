@@ -6,19 +6,25 @@ import { connectAs, nextMessage } from "./ws-client.ts";
 // safety, rate limiting, the teamwork multiplier, a builder dropping out
 // after 5 real seconds of inactivity, real-time sync, concurrent
 // contributions, and completion + the one-time reward. See
-// docs/decisions/0003-construction-concurrency.md.
+// docs/decisions/0003-construction-concurrency.md. These tests all target
+// the original "guinea-pig-house" project (the `contribute`/`stateAs`
+// helpers below default to it) --- the newer, much larger projects (see
+// docs/decisions/0004-multiple-construction-projects.md) exist precisely so
+// they're impractical to drive to completion in a test run; only one new
+// test near the end exercises a second project at all, and only to confirm
+// its tracking is independent, not to complete it.
 //
 // All of this lives in ONE file, in this exact order, on purpose: tests
 // within a file run top-to-bottom, deterministically, but the order Vitest
 // runs separate *files* in is not alphabetical (confirmed empirically ---
 // don't rely on filename sort order across files for this kind of
-// sequencing). The LAST test here drives the one shared project to
-// completion, which is permanent (a finished house doesn't un-finish), so
-// nothing above it in this file --- or in any file that runs after it ---
-// can assume the project is still in_progress. Running `pnpm check` again
-// locally without clearing data/sanctuary.db will find it already
-// complete; delete the database for a clean slate, same as the existing
-// furniture-grid note in spec/README.md.
+// sequencing). The LAST test here drives guinea-pig-house to completion,
+// which is permanent (a finished house doesn't un-finish), so nothing above
+// it in this file --- or in any file that runs after it --- can assume
+// that project is still in_progress. Running `pnpm check` again locally
+// without clearing data/sanctuary.db will find it already complete; delete
+// the database for a clean slate, same as the existing furniture-grid note
+// in spec/README.md.
 //
 // Active-builder tracking is real, shared, ambient state (that's the whole
 // feature): a visitor from an earlier test can still be "active" (within
@@ -27,6 +33,8 @@ import { connectAs, nextMessage } from "./ws-client.ts";
 // absolute counts, so they hold regardless of how much ambient activity
 // nearby tests left behind.
 const baseUrl = inject("baseUrl");
+
+const DEFAULT_PROJECT = "guinea-pig-house";
 
 const UNITS_BY_ACTIVE_BUILDERS = [0, 100, 150, 200, 250]; // mirrors construction.ts's own table
 function unitsFor(activeBuilders: number): number {
@@ -37,19 +45,23 @@ function cookieFor(visitorId: string) {
   return `visitor=${visitorId}`;
 }
 
-async function contribute(visitorId: string, requestId = randomUUID()) {
+async function contribute(visitorId: string, projectId = DEFAULT_PROJECT, requestId = randomUUID()) {
   const res = await fetch(new URL("/api/construction/contribute", baseUrl), {
     method: "POST",
     headers: { "Content-Type": "application/json", cookie: cookieFor(visitorId) },
-    body: JSON.stringify({ requestId }),
+    body: JSON.stringify({ projectId, requestId }),
   });
   return { status: res.status, body: await res.json() };
 }
 
-async function stateAs(visitorId: string) {
-  return fetch(new URL("/api/state", baseUrl), { headers: { cookie: cookieFor(visitorId) } }).then(
-    (r) => r.json(),
-  );
+// Returns one project's own snapshot out of /api/state's construction map
+// (keyed by project id), defaulting to guinea-pig-house so existing call
+// sites below read exactly as they did before projects were plural.
+async function stateAs(visitorId: string, projectId = DEFAULT_PROJECT) {
+  const state = await fetch(new URL("/api/state", baseUrl), {
+    headers: { cookie: cookieFor(visitorId) },
+  }).then((r) => r.json());
+  return { ...state, construction: state.construction[projectId] };
 }
 
 it("a contribution awards exactly the construction points its own reported active-builder count implies", async () => {
@@ -70,10 +82,10 @@ it("replaying the same request id is a no-op, not a double award", async () => {
   const visitor = randomUUID();
   const requestId = randomUUID();
 
-  const first = await contribute(visitor, requestId);
+  const first = await contribute(visitor, DEFAULT_PROJECT, requestId);
   expect(first.body.ok).toBe(true);
 
-  const second = await contribute(visitor, requestId);
+  const second = await contribute(visitor, DEFAULT_PROJECT, requestId);
   expect(second.body.ok).toBe(true);
   expect(second.body.replay).toBe(true);
   expect(second.body.progressUnits).toBe(first.body.progressUnits); // not awarded twice
@@ -170,6 +182,40 @@ it("concurrent contributions from several visitors are all accounted for, with n
   const awarded = results.reduce((sum, r) => sum + r.body.unitsAwarded, 0);
   const after = (await stateAs(visitors[0])).construction;
   expect(after.progressUnits).toBe(before.progressUnits + awarded); // every accepted click counted, none overwritten
+});
+
+it("tracks active builders and progress independently per project", async () => {
+  const visitor = randomUUID();
+  const other = randomUUID();
+
+  // Establish a baseline on a second project, distinct from guinea-pig-house,
+  // before touching it --- these two assertions on their own would also
+  // pass against the old single-project code if it silently ignored
+  // projectId, so the real check is the *next* block: that activity on
+  // guinea-pig-house doesn't move this project's numbers at all.
+  const toolshedBefore = await stateAs(visitor, "toolshed");
+  expect(toolshedBefore.construction.status).toBe("in_progress");
+
+  const houseBefore = await stateAs(visitor, DEFAULT_PROJECT);
+
+  // Busy the default project with a different visitor entirely.
+  const houseResult = await contribute(other, DEFAULT_PROJECT);
+  expect(houseResult.body.ok).toBe(true);
+
+  const toolshedAfter = await stateAs(visitor, "toolshed");
+  expect(toolshedAfter.construction.progressUnits).toBe(toolshedBefore.construction.progressUnits);
+  expect(toolshedAfter.construction.activeBuilders).toBe(toolshedBefore.construction.activeBuilders);
+
+  // Now contribute to the toolshed itself, and confirm guinea-pig-house
+  // (already moved by `other` above) is unaffected by *this* click.
+  const toolshedResult = await contribute(visitor, "toolshed");
+  expect(toolshedResult.body.ok).toBe(true);
+  expect(toolshedResult.body.targetUnits).toBe(50_000); // its own, much larger target
+
+  const houseAfter = await stateAs(other, DEFAULT_PROJECT);
+  expect(houseAfter.construction.progressUnits).toBe(
+    houseBefore.construction.progressUnits + houseResult.body.unitsAwarded,
+  );
 });
 
 it(
