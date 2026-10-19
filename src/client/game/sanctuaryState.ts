@@ -15,5 +15,5 @@ export interface FlowerRow {
 export const sanctuaryState = {
   flowers: [] as FlowerRow[],
   furniture: [] as FurnitureRow[],
-  construction: null as ConstructionSnapshot | null,
+  construction: {} as Record<string, ConstructionSnapshot>,
 };

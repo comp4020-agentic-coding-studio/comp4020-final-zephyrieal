@@ -18,7 +18,7 @@ interface StateResponse {
   furniture: FurnitureRow[];
   storedFurniture: FurnitureRow[];
   carePoints: number;
-  construction: ConstructionSnapshot;
+  construction: Record<string, ConstructionSnapshot>;
 }
 
 // The one place every mutating fetch() call happens --- Phaser scenes only
@@ -33,7 +33,7 @@ export function useSanctuary() {
   const [flowers, setFlowers] = useState<FlowerRow[]>([]);
   const [furniture, setFurniture] = useState<FurnitureRow[]>([]);
   const [storedFurniture, setStoredFurniture] = useState<FurnitureRow[]>([]);
-  const [construction, setConstruction] = useState<ConstructionSnapshot | null>(null);
+  const [construction, setConstruction] = useState<Record<string, ConstructionSnapshot>>({});
   const [rejection, setRejection] = useState<string | null>(null);
   const rejectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -69,16 +69,18 @@ export function useSanctuary() {
   }
 
   // The transition detection (not-completed -> completed) happens here, once,
-  // regardless of whether the snapshot arrived via this visitor's own
-  // contribute() response or a WS broadcast from someone else's --- both
-  // paths funnel through this function.
-  function applyConstruction(next: ConstructionSnapshot) {
-    const wasCompleted = sanctuaryState.construction?.status === "completed";
-    sanctuaryState.construction = next;
-    setConstruction(next);
-    EventBus.emit("construction-updated");
+  // per project, regardless of whether the snapshot arrived via this
+  // visitor's own contribute() response or a WS broadcast from someone
+  // else's --- both paths funnel through this function. Keyed by projectId
+  // so building on one project never touches another's state or fires its
+  // completion celebration.
+  function applyConstruction(projectId: string, next: ConstructionSnapshot) {
+    const wasCompleted = sanctuaryState.construction[projectId]?.status === "completed";
+    sanctuaryState.construction = { ...sanctuaryState.construction, [projectId]: next };
+    setConstruction(sanctuaryState.construction);
+    EventBus.emit("construction-updated", projectId);
     if (!wasCompleted && next.status === "completed") {
-      EventBus.emit("construction-celebrate");
+      EventBus.emit("construction-celebrate", projectId);
     }
   }
 
@@ -96,7 +98,9 @@ export function useSanctuary() {
     applyFlowers(data.flowers);
     applyFurniture(data.furniture);
     setStoredFurniture(data.storedFurniture);
-    applyConstruction(data.construction);
+    for (const [projectId, snapshot] of Object.entries(data.construction)) {
+      applyConstruction(projectId, snapshot);
+    }
   }
 
   async function feed() {
@@ -221,11 +225,11 @@ export function useSanctuary() {
   // value for construction progress"). Applies the response directly rather
   // than waiting for the echoed broadcast, same reasoning buyFurniture
   // already uses for its own balance update.
-  async function contributeToConstruction(requestId: string) {
+  async function contributeToConstruction(projectId: string, requestId: string) {
     const res = await fetch("/api/construction/contribute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId }),
+      body: JSON.stringify({ projectId, requestId }),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
@@ -233,7 +237,7 @@ export function useSanctuary() {
       flashRejection(data.reason ?? "that didn't work");
       return;
     }
-    applyConstruction({
+    applyConstruction(projectId, {
       progressUnits: data.progressUnits,
       targetUnits: data.targetUnits,
       status: data.status,
@@ -297,8 +301,13 @@ export function useSanctuary() {
       version: number;
       requestId: string;
     }) => void retrieveFurniture(id, tileX, tileY, rotation, version, requestId);
-    const onAttemptConstructionContribute = ({ requestId }: { requestId: string }) =>
-      void contributeToConstruction(requestId);
+    const onAttemptConstructionContribute = ({
+      projectId,
+      requestId,
+    }: {
+      projectId: string;
+      requestId: string;
+    }) => void contributeToConstruction(projectId, requestId);
 
     EventBus.on("attempt-plant", onAttemptPlant);
     EventBus.on("attempt-placement", onAttemptPlacement);
@@ -326,7 +335,7 @@ export function useSanctuary() {
         } else if (msg.type === "purchase-rejected") {
           flashRejection(msg.reason);
         } else if (msg.type === "construction-progress") {
-          applyConstruction({
+          applyConstruction(msg.projectId, {
             progressUnits: msg.progressUnits,
             targetUnits: msg.targetUnits,
             status: msg.status,

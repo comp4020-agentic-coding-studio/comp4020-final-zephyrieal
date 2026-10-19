@@ -10,9 +10,13 @@ import type { ConstructionSnapshot } from "../../server/construction.ts";
 // construction progress"). Native <button>s need no extra work for "desktop
 // and mobile, no keyboard required."
 export function ConstructionPanel({
+  projectId,
+  projectName,
   construction,
   onClose,
 }: {
+  projectId: string;
+  projectName: string;
   construction: ConstructionSnapshot | null;
   onClose: () => void;
 }) {
@@ -28,13 +32,13 @@ export function ConstructionPanel({
   function handleBuild() {
     setPulsing(true);
     window.setTimeout(() => setPulsing(false), 180);
-    EventBus.emit("attempt-construction-contribute", { requestId: crypto.randomUUID() });
+    EventBus.emit("attempt-construction-contribute", { projectId, requestId: crypto.randomUUID() });
   }
 
   return (
-    <div className="construction-panel" role="dialog" aria-label="Build the guinea pig house">
+    <div className="construction-panel" role="dialog" aria-label={`Build ${projectName}`}>
       <div className="construction-panel-header">
-        <span>🏠 Building Potato's house</span>
+        <span>🏠 Building {projectName}</span>
         <button
           type="button"
           className="construction-panel-close"
@@ -46,9 +50,7 @@ export function ConstructionPanel({
       </div>
 
       {finished ? (
-        <p className="construction-panel-done">
-          The guinea pig house is ready! Thank you for building together!
-        </p>
+        <p className="construction-panel-done">{projectName} is ready! Thank you for building together!</p>
       ) : (
         <>
           <p className="construction-panel-progress-label">Construction: {percent}%</p>

@@ -13,6 +13,7 @@ export type RealtimeMessage =
   | { type: "purchase-rejected"; reason: string }
   | {
       type: "construction-progress";
+      projectId: string;
       progressUnits: number;
       targetUnits: number;
       status: "in_progress" | "completed";

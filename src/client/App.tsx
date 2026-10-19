@@ -6,6 +6,7 @@ import { ShopPanel } from "./ui/ShopPanel.tsx";
 import { StoragePanel } from "./ui/StoragePanel.tsx";
 import { ConstructionPanel } from "./ui/ConstructionPanel.tsx";
 import { useSanctuary } from "./state/useSanctuary.ts";
+import { PROJECTS } from "../server/construction.ts";
 
 function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
   if (!guineaPig) return "Loading the sanctuary's memory…";
@@ -23,14 +24,16 @@ export default function App() {
     useSanctuary();
   const [view, setView] = useState<"outdoor" | "indoor">("outdoor");
   const [feeding, setFeeding] = useState(false);
-  const [constructionPanelOpen, setConstructionPanelOpen] = useState(false);
+  const [openConstructionProjectId, setOpenConstructionProjectId] = useState<string | null>(null);
 
-  // The construction site is a Phaser sprite living in OutdoorScene; this is
+  // A construction site is a Phaser sprite living in OutdoorScene; this is
   // the first Phaser-to-React direction in this codebase (everywhere else,
-  // like toggleView below, React drives Phaser) --- the sprite's own click
-  // handler emits this once the site is clicked.
+  // like toggleView below, React drives Phaser) --- a site's own click
+  // handler emits this, naming which project it is, once that site is
+  // clicked. Only one panel is ever open at a time: clicking a different
+  // site while one is open swaps which project's panel shows.
   useEffect(() => {
-    const onOpen = () => setConstructionPanelOpen(true);
+    const onOpen = (projectId: string) => setOpenConstructionProjectId(projectId);
     EventBus.on("open-construction-panel", onOpen);
     return () => {
       EventBus.off("open-construction-panel", onOpen);
@@ -87,10 +90,12 @@ export default function App() {
 
         <PhaserGame />
 
-        {constructionPanelOpen && (
+        {openConstructionProjectId && (
           <ConstructionPanel
-            construction={construction}
-            onClose={() => setConstructionPanelOpen(false)}
+            projectId={openConstructionProjectId}
+            projectName={PROJECTS.find((p) => p.id === openConstructionProjectId)?.name ?? openConstructionProjectId}
+            construction={construction[openConstructionProjectId] ?? null}
+            onClose={() => setOpenConstructionProjectId(null)}
           />
         )}
 

@@ -8,33 +8,45 @@ import { sanctuaryState, type FlowerRow } from "../sanctuaryState.ts";
 // (((event.clientX - rect.left) / rect.width) * 100). This scene keeps that
 // space; it is NOT unified with IndoorScene's integer tile grid.
 //
-// The construction site (added alongside the cooperative minigame, see
-// docs/decisions/0003-construction-concurrency.md) lives at a fixed spot in
-// this same percent-space and is the first *interactive* object this scene
-// has ever had --- everything else here is either fixed scenery or driven by
-// the scene-wide "click anywhere plants a flower" handler below.
-const CONSTRUCTION_SITE_X_PERCENT = 78;
-const CONSTRUCTION_SITE_Y_PERCENT = 22;
+// The construction sites (added alongside the cooperative minigame, see
+// docs/decisions/0003-construction-concurrency.md and
+// docs/decisions/0004-multiple-construction-projects.md) live at fixed
+// spots in this same percent-space and are the first *interactive* objects
+// this scene has ever had --- everything else here is either fixed scenery
+// or driven by the scene-wide "click anywhere plants a flower" handler
+// below. Positions are picked to avoid the guinea pig (50/50) and each
+// other; adjust by eye if a sprite's footprint turns out to overlap.
+const CONSTRUCTION_SITES: { projectId: string; xPercent: number; yPercent: number }[] = [
+  { projectId: "guinea-pig-house", xPercent: 78, yPercent: 22 },
+  { projectId: "toolshed", xPercent: 15, yPercent: 20 },
+  { projectId: "greenhouse", xPercent: 15, yPercent: 70 },
+  { projectId: "bridge", xPercent: 78, yPercent: 70 },
+  { projectId: "great-hall", xPercent: 50, yPercent: 85 },
+];
 
-function stageKeyFor(construction: { progressUnits: number; targetUnits: number; status: string } | null): string {
-  if (!construction) return "construction-0";
-  if (construction.status === "completed") return "construction-4";
+function stageKeyFor(
+  projectId: string,
+  construction: { progressUnits: number; targetUnits: number; status: string } | undefined,
+): string {
+  if (!construction) return `${projectId}-0`;
+  if (construction.status === "completed") return `${projectId}-4`;
   const percent = (construction.progressUnits / construction.targetUnits) * 100;
   const stage = Math.min(3, Math.floor(percent / 25)); // 0-24->0, 25-49->1, 50-74->2, 75-99->3
-  return `construction-${stage}`;
+  return `${projectId}-${stage}`;
 }
 
 export class OutdoorScene extends Phaser.Scene {
   private flowerSprites: Phaser.GameObjects.Image[] = [];
-  private constructionSite?: Phaser.GameObjects.Image;
-  // Set by the construction site's own pointerdown just before it opens the
-  // panel, so the scene-wide pointerdown (which would otherwise try to plant
-  // a flower at that same click) ignores it once and clears the flag --- the
-  // same one-shot pattern IndoorScene already uses for its furniture menu.
+  private constructionSites = new Map<string, Phaser.GameObjects.Image>();
+  // Set by a construction site's own pointerdown just before it opens the
+  // panel, so the scene-wide pointerdown (which would otherwise try to
+  // plant a flower at that same click) ignores it once and clears the flag
+  // --- the same one-shot pattern IndoorScene already uses for its
+  // furniture menu.
   private suppressNextSceneClick = false;
   private onFlowersUpdated = () => this.redrawFlowers();
-  private onConstructionUpdated = () => this.redrawConstructionSite();
-  private onConstructionCelebrate = () => this.playCompletionEffect();
+  private onConstructionUpdated = (projectId: string) => this.redrawConstructionSite(projectId);
+  private onConstructionCelebrate = (projectId: string) => this.playCompletionEffect(projectId);
   private onPlantRandom = () => this.attemptPlant(20 + Math.random() * 60, 20 + Math.random() * 60);
 
   constructor() {
@@ -54,7 +66,7 @@ export class OutdoorScene extends Phaser.Scene {
     this.add.image((width * 50) / 100, (height * 50) / 100, "guinea-pig");
 
     this.redrawFlowers();
-    this.redrawConstructionSite();
+    for (const site of CONSTRUCTION_SITES) this.redrawConstructionSite(site.projectId);
     EventBus.on("flowers-updated", this.onFlowersUpdated);
     EventBus.on("construction-updated", this.onConstructionUpdated);
     EventBus.on("construction-celebrate", this.onConstructionCelebrate);
@@ -99,26 +111,33 @@ export class OutdoorScene extends Phaser.Scene {
   }
 
   // Always destroys and recreates, like redrawFlowers/redrawFurniture ---
-  // the earlier "create once, then just setTexture" version kept
-  // `this.constructionSite` pointing at a sprite from the *previous* time
-  // this Scene ran. Phaser reuses the same Scene instance across
-  // stop()/start() (switching views doesn't construct a fresh OutdoorScene),
-  // but stop() destroys every GameObject the Scene owned --- so the old
-  // sprite was already dead by the time this ran again, and calling
-  // setTexture() on it threw, aborting the rest of create() (including the
-  // click-to-plant and keyboard handlers registered further down).
-  private redrawConstructionSite() {
-    this.constructionSite?.destroy();
+  // an earlier "create once, then just setTexture" version kept a site's
+  // sprite reference pointing at a sprite from the *previous* time this
+  // Scene ran. Phaser reuses the same Scene instance across stop()/start()
+  // (switching views doesn't construct a fresh OutdoorScene), but stop()
+  // destroys every GameObject the Scene owned --- so the old sprite was
+  // already dead by the time this ran again, and calling setTexture() on it
+  // threw, aborting the rest of create() (including the click-to-plant and
+  // keyboard handlers registered further down). See PROCESS.md, "the house
+  // disappeared after going back outside."
+  private redrawConstructionSite(projectId: string) {
+    this.constructionSites.get(projectId)?.destroy();
 
-    const key = stageKeyFor(sanctuaryState.construction);
-    const x = (this.scale.width * CONSTRUCTION_SITE_X_PERCENT) / 100;
-    const y = (this.scale.height * CONSTRUCTION_SITE_Y_PERCENT) / 100;
+    const site = CONSTRUCTION_SITES.find((s) => s.projectId === projectId);
+    if (!site) return; // an unknown projectId in an event payload --- nothing to draw
 
-    this.constructionSite = this.add.image(x, y, key).setInteractive();
-    this.constructionSite.on("pointerdown", () => {
+    const key = stageKeyFor(projectId, sanctuaryState.construction[projectId]);
+    const x = (this.scale.width * site.xPercent) / 100;
+    const y = (this.scale.height * site.yPercent) / 100;
+
+    const sprite = this.add.image(x, y, key).setInteractive();
+    console.log("DEBUG created site", projectId, "at", x, y, "key", key);
+    sprite.on("pointerdown", () => {
+      console.log("DEBUG pointerdown fired for", projectId);
       this.suppressNextSceneClick = true;
-      EventBus.emit("open-construction-panel");
+      EventBus.emit("open-construction-panel", projectId);
     });
+    this.constructionSites.set(projectId, sprite);
   }
 
   // Simple and brief on purpose (CLAUDE.md: respect reduced-motion for
@@ -126,9 +145,9 @@ export class OutdoorScene extends Phaser.Scene {
   // visual clarity over elaborate animation") --- a quick scale pulse on the
   // finished building, nothing that blocks or distracts from the sprite swap
   // redrawConstructionSite() already did via the construction-updated event.
-  private playCompletionEffect() {
-    if (!this.constructionSite) return;
-    const sprite = this.constructionSite;
+  private playCompletionEffect(projectId: string) {
+    const sprite = this.constructionSites.get(projectId);
+    if (!sprite) return;
     this.tweens.add({
       targets: sprite,
       scale: { from: 1, to: 1.25 },
