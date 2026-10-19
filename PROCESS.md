@@ -667,3 +667,41 @@ first WS connection in local dev only):
 - With `prefers-reduced-motion: reduce` emulated, her position updated
   with no glide, matching the intended snap behaviour.
 
+## Bugfix: the progress bar looked stuck on the bigger houses
+
+Reported: "it seems that the progress bar doesn't increase when you build
+house together." Confirmed against the live deployed app by contributing
+directly (bypassing the UI) --- `construction.progressUnits` was climbing
+correctly on every click, including the 1.5x multiplier kicking in once a
+second visitor joined. The server side (`src/server/construction.ts`,
+unchanged by ADR 004's own verification) was never the problem.
+
+The actual bug was `ConstructionPanel.tsx` flooring the displayed percent
+to a whole number. That's fine for the original `guinea-pig-house` (10,000
+units, 1% per solo click), but ADR 004's four newer, deliberately much
+larger projects make a single click worth far less than 1%: 0.2% on the
+toolshed, 0.05% on the greenhouse, 0.02% on the bridge, 0.005% on the
+great hall. Flooring meant the label could sit at a stuck "0%" for dozens
+of real, server-recorded clicks --- confirmed by reproducing it directly:
+10 solo clicks on the greenhouse moved `progressUnits` from 0 to 500 (the
+real, correct amount) while the displayed label stayed "0%" the entire
+time, with or without a second visitor involved. "Building together" was
+never broken --- the multiplier and the shared broadcast both worked
+exactly as they should (verified again with two browser contexts); the
+number on screen just couldn't show the truth yet.
+
+Fix: show two decimal places below 10%, a plain whole number at 10% and
+above (where the extra precision stops being noticeable), "0" only when
+progress is exactly zero, and "<0.01" for the sliver between zero and the
+smallest value two decimals can represent. The progress bar's fill width
+and its `aria-valuenow` both switched from the floored integer to the same
+exact percentage, so a screen reader announces the same real number the
+visual bar now shows.
+
+Verified in-browser against a fresh local build: 10 solo clicks on the
+greenhouse now show "0.50%" (previously stuck at "0%"); a two-visitor
+session on the small project showed the label move 0% → 1.00% → 3.50% as
+the multiplier engaged, both browser contexts staying in sync throughout.
+`pnpm check` still passes (39/39, typecheck clean) --- no existing test
+asserted the floored display, so nothing needed updating.
+
