@@ -3,7 +3,7 @@ import type { FarmState, Crop } from "../../shared/farm.ts";
 import { useEffect, useRef, useState } from "react";
 import { connectRealtime } from "../net/socket.ts";
 import { applyPresence, clearPresence, presenceState } from "../game/presenceState.ts";
-import type { MoveIntent } from "../../shared/presence.ts";
+import type { PresenceIntent } from "../../shared/presence.ts";
 import { EventBus } from "../game/eventBus.ts";
 import { sanctuaryState } from "../game/sanctuaryState.ts";
 import type { FurnitureRow } from "../../server/furniture.ts";
@@ -418,6 +418,7 @@ export function useSanctuary() {
           });
         } else if (msg.type === "guinea-pig-walking") {
           applyGuineaPigMovement({
+            room: msg.room ?? "outdoor",
             x: msg.x,
             y: msg.y,
             targetX: msg.targetX,
@@ -439,7 +440,7 @@ export function useSanctuary() {
       },
       clearPresence,
     );
-    const onVisitorInput = (intent: MoveIntent) => realtime.send(intent);
+    const onVisitorInput = (intent: PresenceIntent) => realtime.send(intent);
     EventBus.on("visitor-input", onVisitorInput);
 
     return () => {

@@ -1,3 +1,4 @@
+import { addGuineaPigs } from "../GuineaPigLayer.ts";
 import { configureCamera } from "../FollowCamera.ts";
 import { roomName } from "../../../shared/rooms.ts";
 import { onSceneExit } from "../onSceneExit.ts";
@@ -88,6 +89,7 @@ export class IndoorScene extends Phaser.Scene {
     this.activeOp = undefined;
     addPlayers(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room, () => Boolean(this.activeOp));
     this.drawFloorAndWalls();
+    addGuineaPigs(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room);
     this.add.text(320, 100, roomName(sanctuaryState.room), { fontFamily: "monospace", fontSize: "16px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 10, y: 6 } }).setOrigin(0.5);
     this.redrawFurniture();
 

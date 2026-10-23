@@ -10,20 +10,21 @@ import { inReach, sitePosition, CONSTRUCTION_SITES, FEED_REACH, BUILD_REACH, MEA
 interface Action { pigId?: string; name?: string; key: string; label: string; x: number; y: number; run: () => void }
 function actions(): Action[] {
   const self = presenceState.players.find(p => p.id === presenceState.selfId);
-  if (!presenceState.connected || !self || self.room !== "outdoor") return [];
+  if (!presenceState.connected || !self) return [];
   const result: Action[] = [];
   for (const pig of Object.values(sanctuaryState.guineaPigs)) {
     const movement = pig.movement;
+    if ((movement.room ?? "outdoor") !== self.room) continue;
     const remaining = Math.max(0, movement.startedAt + movement.durationMs - pig.receivedAt);
     const t = remaining ? Math.min(1, Math.max(0, (Date.now() - pig.receivedAt) / remaining)) : 1;
     const x = (movement.x + (movement.targetX - movement.x) * t) * MEADOW_WIDTH / 100;
     const y = (movement.y + (movement.targetY - movement.y) * t) * MEADOW_HEIGHT / 100;
-    if (inReach(self, x, y, FEED_REACH - 4)) result.push({
+    if (inReach(self, x, y, FEED_REACH - 4, self.room)) result.push({
       key: `feed-${pig.id}`, pigId: pig.id, name: pig.name, label: `Feed ${pig.name} · E`, x, y: y - 24,
       run: () => EventBus.emit("open-food-menu", pig.id),
     });
   }
-  for (const site of CONSTRUCTION_SITES) {
+  for (const site of self.room === "outdoor" ? CONSTRUCTION_SITES : []) {
     const position = sitePosition(site.projectId)!;
     if (inReach(self, position.x, position.y, BUILD_REACH - 4)) result.push({
       key: site.projectId,

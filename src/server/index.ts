@@ -23,7 +23,7 @@ import {
 import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
 import { mintVisitorCookie, verifyVisitorCookie, VISITOR_COOKIE_MAX_AGE } from "./identity.ts";
-import { currentPosition as currentGuineaPigPosition, tick as tickGuineaPig } from "./guinea-pig.ts";
+import { inhabitantPosition, tickInhabitant, visitHouse } from "./indoor-guinea-pigs.ts";
 
 declare global {
   namespace Express {
@@ -40,9 +40,9 @@ const publicDir = join(repoRoot, "public");
 import { inReach, sitePosition, FEED_REACH, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../shared/interactions.ts";
 
 const app = express();
-function requireNearby(req: Request, res: Response, x: number, y: number, reach: number, reason: string): boolean {
+function requireNearby(req: Request, res: Response, x: number, y: number, reach: number, reason: string, room: Room = "outdoor"): boolean {
   const player = playerForVisitor(req.visitorId, req.get("X-Player-Id"));
-  if (inReach(player, x, y, reach)) return true;
+  if (inReach(player, x, y, reach, room)) return true;
   logAction(req.visitorId, "interaction-denied", { action: req.path, reason });
   res.status(403).json({ ok: false, reason });
   return false;
@@ -110,7 +110,7 @@ app.get("/api/state", (req: Request, res: Response) => {
   // persistent guinea_pigs table. See src/server/guinea-pig.ts and
   // PROCESS.md's "Potato wanders the meadow" section for why her position
   // isn't a database column.
-  const guineaPigMovement = currentGuineaPigPosition();
+  const guineaPigMovement = inhabitantPosition("potato");
   const farm = farmState(db);
   const room = isRoom(req.query.room) && req.query.room !== "outdoor" ? req.query.room : "indoor";
   const furniture = getFurniture(db, room);
@@ -125,7 +125,7 @@ app.get("/api/state", (req: Request, res: Response) => {
   res.json({
     guineaPig,
     guineaPigMovement,
-    guineaPigs: GUINEA_PIGS.map(p => ({ id: p.id, ...getPotato(p.id), movement: currentGuineaPigPosition(Date.now(), p.id) })),
+    guineaPigs: GUINEA_PIGS.map(p => ({ id: p.id, ...getPotato(p.id), movement: inhabitantPosition(p.id) })),
     farm,
     furniture,
     storedFurniture,
@@ -143,9 +143,9 @@ app.post("/api/feed", (req: Request, res: Response) => {
   const guineaPigId = req.body?.guineaPigId ?? "potato";
   const inhabitant = GUINEA_PIGS.find(p => p.id === guineaPigId);
   if (!inhabitant) { res.status(400).json({ ok: false, reason: "Choose a known guinea pig." }); return; }
-  const potato = currentGuineaPigPosition(Date.now(), guineaPigId);
+  const potato = inhabitantPosition(guineaPigId);
   if (!requireNearby(req, res, potato.x * MEADOW_WIDTH / 100, potato.y * MEADOW_HEIGHT / 100,
-      FEED_REACH, `Walk closer to ${inhabitant.name} to feed them.`)) return;
+      FEED_REACH, `Walk closer to ${inhabitant.name} to feed them.`, potato.room)) return;
   const { requestId = randomUUID(), crop = "hay" } = req.body ?? {};
   if (typeof requestId !== "string" || !requestId || !isCrop(crop)) {
     res.status(400).json({ ok: false, reason: "Choose a valid food and request id." }); return;
@@ -196,6 +196,8 @@ app.post("/api/room", (req: Request, res: Response) => {
     if (site) position = { x: site.x, y: site.y + 40 };
   }
   movePlayerRoom(player.id, room, position);
+  const visitor = visitHouse(room, room === "outdoor" ? [] : getFurniture(db, room));
+  if (visitor) broadcast({ type: "guinea-pig-walking", ...visitor });
   logAction(req.visitorId, "room-changed", { room });
   res.json({ ok: true, room });
 });
@@ -520,7 +522,7 @@ setInterval(() => {
   }
 
   for (const pig of GUINEA_PIGS) {
-    const movement = tickGuineaPig(Date.now(), Math.random, pig.id);
+    const movement = tickInhabitant(pig.id, room => getFurniture(db, room));
     if (movement) broadcast({ type: "guinea-pig-walking", guineaPigId: pig.id, ...movement });
   }
 }, 1000);

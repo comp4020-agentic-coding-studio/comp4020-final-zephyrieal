@@ -1,16 +1,24 @@
+import type { Room } from "../../shared/rooms.ts";
 import { MEADOW_WIDTH, MEADOW_HEIGHT } from "../../shared/interactions.ts";
 import { onSceneExit } from "./onSceneExit.ts";
 import Phaser from "phaser";
 import { sanctuaryState } from "./sanctuaryState.ts";
 
-export function addGuineaPigs(scene: Phaser.Scene) {
+export function addGuineaPigs(scene: Phaser.Scene, room: Room = "outdoor") {
   const sprites = new Map<string, { body: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }>();
   const update = () => {
+    for (const [id, sprite] of sprites) {
+      if ((sanctuaryState.guineaPigs[id]?.movement.room ?? "outdoor") !== room) {
+        sprite.body.destroy(); sprite.label.destroy(); sprites.delete(id);
+      }
+    }
     for (const pig of Object.values(sanctuaryState.guineaPigs)) {
+      if ((pig.movement.room ?? "outdoor") !== room) continue;
       let sprite = sprites.get(pig.id);
       if (!sprite) {
         const body = scene.add.image(0, 0, pig.id === "potato" ? "guinea-pig" : pig.id, pig.id === "potato" ? "potato" : "pig").setDepth(3);
-        body.setDisplaySize(38, 38 * body.frame.height / body.frame.width);
+        const size = room === "outdoor" ? 38 : 28;
+        body.setDisplaySize(size, size * body.frame.height / body.frame.width);
         const label = scene.add.text(0, 0, pig.name, { fontFamily: "monospace", fontSize: "9px", color: "#37442e", backgroundColor: "#fff6df", padding: { x: 3, y: 1 } }).setOrigin(0.5, 0).setDepth(4);
         body.setName(`guinea-pig:${pig.id}`);
         sprite = { body, label }; sprites.set(pig.id, sprite);

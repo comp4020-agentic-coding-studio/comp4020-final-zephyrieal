@@ -1,3 +1,4 @@
+import type { Room } from "./rooms.ts";
 import type { Player } from "./presence.ts";
 export const MEADOW_WIDTH = 640;
 export const MEADOW_HEIGHT = 512;
@@ -10,8 +11,8 @@ export const CONSTRUCTION_SITES = [
   { projectId: "bridge", xPercent: 78, yPercent: 70 },
   { projectId: "great-hall", xPercent: 50, yPercent: 85 },
 ];
-export function inReach(player: Player | undefined, x: number, y: number, reach: number): boolean {
-  return Boolean(player && player.room === "outdoor" && Math.hypot(player.x - x, player.y - y) <= reach);
+export function inReach(player: Player | undefined, x: number, y: number, reach: number, room: Room = "outdoor"): boolean {
+  return Boolean(player && player.room === room && Math.hypot(player.x - x, player.y - y) <= reach);
 }
 export function sitePosition(projectId: string) {
   const site = CONSTRUCTION_SITES.find(s => s.projectId === projectId);

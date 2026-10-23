@@ -13,5 +13,6 @@ These records describe decisions implemented in the sanctuary. Existing records 
 | [007](0007-authoritative-multiplayer-presence.md) | Controllable avatars and synchronized visitor movement |
 | [008](0008-in-game-construction-feedback.md) | In-game building controls and shared construction dust |
 | [009](0009-shared-building-interiors.md) | Separate shared interiors for completed buildings |
+| [010](0010-shared-indoor-guinea-pig-visits.md) | One shared location per inhabitant, indoor wandering and room-checked feeding |
 
 As of 2026-10-22, ADR 006 supersedes earlier descriptions of active flower planting, and ADR 007 adds live avatar presence to the existing identity model. Art and sprite revisions are intentionally excluded. The sanctuary now has four named inhabitants. Each has independent server-owned wandering and a persistent feeding record; proximity and shared pantry rules still apply.

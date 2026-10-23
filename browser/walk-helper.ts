@@ -1,9 +1,28 @@
+import { sitePosition } from "../src/shared/interactions.ts";
 import { expect, type Page } from "@playwright/test";
 export async function presence(page: Page) {
   return page.evaluate(async () => { const path = "/game/presenceState.ts"; return (await import(path)).presenceState; });
 }
 export async function walkTo(page: Page, target: string | { x: number; y: number }, reach = 35) {
   await expect.poll(async () => (await presence(page)).connected).toBe(true);
+  if (typeof target === "string") {
+    const state = await page.request.get("/api/state").then(r => r.json());
+    const pig = state.guineaPigs.find((p: {id: string}) => p.id === (target === "feed" ? "potato" : target));
+    const room = pig?.movement.room ?? "outdoor";
+    const ps = await presence(page);
+    const current = ps.players.find(p => p.id === ps.selfId)?.room;
+    if (current !== room) {
+      if (current !== "outdoor") await page.getByRole("button", { name: "Go back outside", exact: true }).click();
+      if (room === "indoor") await page.getByRole("button", { name: "Go inside", exact: true }).click();
+      else if (room.startsWith("house:")) {
+        const project = room.slice(6);
+        const position = sitePosition(project)!;
+        await walkTo(page, position);
+        await page.getByRole("button", { name: `Enter ${project}`, exact: true }).click();
+      }
+      await expect.poll(async () => { const ps = await presence(page); return ps.players.find(p => p.id === ps.selfId)?.room; }).toBe(room);
+    }
+  }
   await page.locator(".game-container").focus();
   let held: string[] = [];
   try {

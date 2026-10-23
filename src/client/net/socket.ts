@@ -1,6 +1,7 @@
+import type { Room } from "../../shared/rooms.ts";
 import type { FarmState } from "../../shared/farm.ts";
 import type { GuineaPig } from "../state/useSanctuary.ts";
-import type { MoveIntent, PresenceMessage } from "../../shared/presence.ts";
+import type { PresenceIntent, PresenceMessage } from "../../shared/presence.ts";
 
 export type RealtimeMessage =
   | PresenceMessage
@@ -26,6 +27,7 @@ export type RealtimeMessage =
     }
   | {
       type: "guinea-pig-walking";
+      room?: Room;
       guineaPigId: string;
       x: number;
       y: number;
@@ -37,7 +39,7 @@ export type RealtimeMessage =
 
 export interface RealtimeHandle {
   close(): void;
-  send(intent: MoveIntent): void;
+  send(intent: PresenceIntent): void;
 }
 
 export function connectRealtime(
