@@ -419,6 +419,7 @@ export function useSanctuary() {
         } else if (msg.type === "guinea-pig-walking") {
           applyGuineaPigMovement({
             room: msg.room ?? "outdoor",
+            activity: msg.activity,
             x: msg.x,
             y: msg.y,
             targetX: msg.targetX,

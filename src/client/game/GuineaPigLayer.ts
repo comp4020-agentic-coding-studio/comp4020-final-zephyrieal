@@ -29,6 +29,10 @@ export function addGuineaPigs(scene: Phaser.Scene, room: Room = "outdoor") {
       const x = (m.x + (m.targetX - m.x) * t) * MEADOW_WIDTH / 100;
       const y = (m.y + (m.targetY - m.y) * t) * MEADOW_HEIGHT / 100;
       sprite.body.setPosition(x, y);
+      const activity = m.activity;
+      sprite.body.setAlpha(activity === "hiding" ? 0.25 : 1);
+      sprite.body.setDepth(activity === "resting" ? 5 : 3);
+      sprite.label.setDepth(6).setText(activity ? `${pig.name} · ${activity === "resting" ? "Resting on hay" : activity === "hiding" ? "In the hideout" : "Exploring the tunnel"}` : pig.name);
       if (m.targetX !== m.x) sprite.body.setFlipX(m.targetX < m.x);
       sprite.label.setPosition(x, y + 15);
     }

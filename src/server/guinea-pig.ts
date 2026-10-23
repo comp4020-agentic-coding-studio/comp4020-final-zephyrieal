@@ -19,6 +19,7 @@ import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 // for its own (genuinely real-time) active-builder dropout behavior.
 
 export interface GuineaPigMovement {
+  activity?: "resting" | "hiding" | "exploring";
   room?: Room;
   x: number; // 0-100 percent-of-meadow, the same space flowers already use
   y: number;

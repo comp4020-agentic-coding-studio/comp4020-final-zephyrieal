@@ -3,9 +3,13 @@ import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 import { BLOCKED_TILES, TILE_SIZE, type FurnitureRow } from "./furniture.ts";
 import { currentPosition, tick, type GuineaPigMovement } from "./guinea-pig.ts";
 
-type Piece = Pick<FurnitureRow, "tile_x" | "tile_y" | "width" | "height">;
-type Visit = { room: Room; movement: GuineaPigMovement; leaveAt: number; pauseUntil: number };
+type Piece = Pick<FurnitureRow, "tile_x" | "tile_y" | "width" | "height"> & Partial<Pick<FurnitureRow, "id" | "kind" | "rotation" | "version">>;
+type Visit = { room: Room; movement: GuineaPigMovement; leaveAt: number; pauseUntil: number; using?: { key: string; phase: "approach" | "using" | "leaving"; activity: NonNullable<GuineaPigMovement["activity"]> }; cooldownUntil?: number };
 const visits = new Map<string, Visit>();
+const pieceKey = (p: Piece) => JSON.stringify([p.id, p.kind, p.tile_x, p.tile_y, p.width, p.height, p.rotation, p.version]);
+const activityFor = (kind?: string): GuineaPigMovement["activity"] =>
+  kind === "hay_bed" ? "resting" : kind === "hideout" ? "hiding" : kind === "tunnel" ? "exploring" : undefined;
+
 const world = (m: GuineaPigMovement, now: number) => {
   const t = m.durationMs ? Math.max(0, Math.min(1, (now - m.startedAt) / m.durationMs)) : 1;
   return { x: (m.x + (m.targetX - m.x) * t) * 6.4, y: (m.y + (m.targetY - m.y) * t) * 5.12 };
@@ -59,6 +63,46 @@ export function tickInhabitant(id: string, piecesFor: (room: Room) => Piece[], n
   const pieces = piecesFor(visit.room);
   const p = world(visit.movement, now);
   const free = freePoints(pieces);
+  // Only the selected furnishing is traversable. Moving/storing/rotating it
+  // cancels the visit immediately; all other furniture remains an obstacle.
+  const selected = visit.using && pieces.find(piece => pieceKey(piece) === visit.using!.key);
+  if (visit.using && !selected) {
+    visit.using = undefined;
+    visit.movement = movement(p.x, p.y, now, visit.room);
+    visit.pauseUntil = now;
+    if (clearIndoorPoint(p.x, p.y, pieces)) return visit.movement;
+  }
+  if (visit.using && selected) {
+    const obstacles = pieces.filter(piece => piece !== selected);
+    const destination = world(visit.movement, visit.movement.startedAt + visit.movement.durationMs);
+    if (!clearIndoorPath(p, destination, obstacles)) {
+      visit.using = undefined;
+      visit.movement = movement(p.x, p.y, now, visit.room);
+      visit.pauseUntil = now;
+    } else if (now < visit.movement.startedAt + visit.movement.durationMs || now < visit.pauseUntil) {
+      return;
+    } else if (visit.using.phase === "approach") {
+      visit.using.phase = "using";
+      visit.movement = { ...movement(p.x, p.y, now, visit.room), activity: visit.using.activity };
+      visit.pauseUntil = now + 6000;
+      return visit.movement;
+    } else if (visit.using.phase === "using") {
+      const exit = free.filter(target => clearIndoorPath(p, target, obstacles))
+        .sort((a, b) => Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+      if (!exit) return;
+      visit.using.phase = "leaving";
+      visit.pauseUntil = now;
+      visit.movement = { ...movement(p.x, p.y, now, visit.room), targetX: exit.x/6.4, targetY: exit.y/5.12,
+        durationMs: Math.max(800, Math.round(Math.hypot(exit.x-p.x,exit.y-p.y)/28*1000)) };
+      return visit.movement;
+    } else {
+      visit.using = undefined;
+      visit.cooldownUntil = now + 8000;
+      visit.movement = movement(p.x, p.y, now, visit.room);
+      visit.pauseUntil = now + 1000;
+      return visit.movement;
+    }
+  }
   if (!clearIndoorPoint(p.x, p.y, pieces)) {
     const nearest = free.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
     if (!nearest) { visits.delete(id); return inhabitantPosition(id, now); }
@@ -77,6 +121,25 @@ export function tickInhabitant(id: string, piecesFor: (room: Room) => Piece[], n
     visit.movement = movement(p.x, p.y, now, visit.room);
     visit.pauseUntil = now + 1000 + random() * 2500;
     return visit.movement;
+  }
+  if (now >= (visit.cooldownUntil ?? 0) && random() < 0.65) {
+    const choices = pieces.flatMap(piece => {
+      const activity = activityFor(piece.kind);
+      if (!activity) return [];
+      const target = { x: 160 + (piece.tile_x + piece.width/2)*TILE_SIZE,
+        y: 128 + (piece.tile_y + piece.height/2)*TILE_SIZE };
+      const obstacles = pieces.filter(other => other !== piece);
+      // Require an unobstructed approach and a way back to ordinary floor.
+      if (!clearIndoorPath(p, target, obstacles) || !free.some(exit => clearIndoorPath(target, exit, obstacles))) return [];
+      return [{ piece, activity, target }];
+    });
+    const choice = choices[Math.min(choices.length-1, Math.floor(random()*choices.length))];
+    if (choice) {
+      visit.using = { key: pieceKey(choice.piece), phase: "approach", activity: choice.activity };
+      visit.movement = { ...movement(p.x,p.y,now,visit.room), targetX: choice.target.x/6.4, targetY: choice.target.y/5.12,
+        durationMs: Math.max(800,Math.round(Math.hypot(choice.target.x-p.x,choice.target.y-p.y)/28*1000)) };
+      return visit.movement;
+    }
   }
   const reachable = free.filter(target => Math.hypot(target.x - p.x, target.y - p.y) > 12 && clearIndoorPath(p, target, pieces));
   const target = reachable[Math.min(reachable.length - 1, Math.floor(random() * reachable.length))];

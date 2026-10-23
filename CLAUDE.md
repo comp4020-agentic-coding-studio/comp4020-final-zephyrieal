@@ -99,3 +99,5 @@ preferences for animation that isn't load-bearing.
 ## Social gestures
 Wave and help gestures are temporary presence, not permanent contributions. Sitting ends on movement, room changes or disconnect. Validate gestures on the server and never accept a client-supplied target identity or duration. Keep gesture meaning readable without relying on animation, colour or sound.
 
+## Furniture and animal behaviour
+Furniture use is chosen by the server, never commanded by visitors. Only the furnishing being used may be traversed; walls and other furnishings remain obstacles. Moving, rotating or storing it cancels use safely. Broadcast activity with animal movement and include it in reconnect snapshots. Activity is temporary; shared furniture remains persistent.

@@ -72,3 +72,5 @@ Walk up to a completed house, toolshed, greenhouse or great hall and choose Ente
 ## Acknowledging other visitors
 Use **Wave**, **Sit** and **Help here** below the meadow. Nearby visitors in the same room see a labelled gesture above your character. Wave and help last three seconds; sitting lasts until you stand, walk, change rooms or disconnect. Gestures are temporary presence and do not spend Care Points.
 
+## Furniture the inhabitants use
+During indoor visits, guinea pigs sometimes approach a reachable hay bed to rest, a hideout to hide, or a tunnel to investigate. Their activity is shared live and labelled beside them. They leave again on their own; moving or storing the furniture interrupts its use safely. The furniture persists; these brief behaviours do not.

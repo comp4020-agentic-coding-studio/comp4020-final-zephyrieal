@@ -27,6 +27,7 @@ export type RealtimeMessage =
     }
   | {
       type: "guinea-pig-walking";
+      activity?: "resting" | "hiding" | "exploring";
       room?: Room;
       guineaPigId: string;
       x: number;

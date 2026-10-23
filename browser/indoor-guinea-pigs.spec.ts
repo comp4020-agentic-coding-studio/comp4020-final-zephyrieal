@@ -15,8 +15,8 @@ test("house visitors share roaming guinea pigs and can feed them only in the sam
     expect(denied.status()).toBe(403);
     await b.getByRole("button", { name: "Go inside", exact: true }).click();
     const local = (page: any) => page.evaluate(async (id: string) => { const path = "/game/sanctuaryState.ts"; return (await import(path)).sanctuaryState.guineaPigs[id]; }, pig.id);
-    await expect.poll(async () => (await local(b)).movement.room).toBe("indoor");
-    await expect.poll(async () => (await local(a)).movement.durationMs, { timeout: 10000 }).toBeGreaterThan(0);
+    await expect.poll(async () => (await local(b))?.movement.room).toBe("indoor");
+    await expect.poll(async () => (await local(a))?.movement.durationMs, { timeout: 10000 }).toBeGreaterThan(0);
     expect((await local(b)).movement.targetX).toBe((await local(a)).movement.targetX);
     await walkTo(a, pig.id, 25);
     await a.getByRole("button", { name: `Feed ${pig.name}`, exact: true }).click();
