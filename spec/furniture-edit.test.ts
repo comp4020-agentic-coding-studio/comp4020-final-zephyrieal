@@ -1,3 +1,4 @@
+import { interactionFetch as fetch } from "./nearby-client.ts";
 import { expect, inject, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { FURNITURE_CATALOG } from "../src/server/furniture.ts";

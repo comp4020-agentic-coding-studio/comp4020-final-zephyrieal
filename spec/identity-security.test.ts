@@ -1,3 +1,4 @@
+import { interactionFetch as fetch } from "./nearby-client.ts";
 import { createHmac, randomUUID } from "node:crypto";
 import { expect, inject, it } from "vitest";
 import { FEED_REWARD } from "../src/server/furniture.ts";

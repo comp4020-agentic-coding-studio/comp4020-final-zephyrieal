@@ -1,3 +1,5 @@
+import { approach } from "./nearby-client.ts";
+import { interactionFetch as fetch } from "./nearby-client.ts";
 import { expect, inject, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { connectAs, nextMessage } from "./ws-client.ts";
@@ -55,6 +57,7 @@ async function contribute(visitorId: string, projectId = DEFAULT_PROJECT, reques
 // (keyed by project id), defaulting to guinea-pig-house so existing call
 // sites below read exactly as they did before projects were plural.
 async function stateAs(visitorId: string, projectId = DEFAULT_PROJECT) {
+  await approach(baseUrl, visitorId, projectId);
   const state = await fetch(new URL("/api/state", baseUrl), {
     headers: { cookie: cookieFor(visitorId) },
   }).then((r) => r.json());
@@ -155,6 +158,7 @@ it("broadcasts progress to another connected visitor", async () => {
   const visitor = randomUUID();
   const observer = randomUUID();
 
+  await approach(baseUrl, visitor, DEFAULT_PROJECT);
   const wsObserver = await connectAs(baseUrl, observer);
   try {
     const progressArrives = nextMessage(wsObserver, (msg) => msg.type === "construction-progress");

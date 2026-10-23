@@ -2,18 +2,49 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 import { logAction } from "./log.ts";
 import { verifyVisitorCookie } from "./identity.ts";
+import { createPresence } from "./presence.ts";
 
-// Server -> client push only. Purchases and other mutations still go over
-// the existing HTTP intent endpoints (/api/feed, /api/plant,
-// /api/furniture/place) --- this keeps "the client sends an intent, the
-// server decides" (CLAUDE.md) structural: the HTTP response *is* the commit
-// confirmation, and a WebSocket broadcast is purely informative for everyone
-// else already connected. See docs/decisions/0001-concurrent-furniture-placement.md.
+// Persistent mutations use HTTP; ephemeral movement intents use this socket.
+const presence = createPresence();
+export const movePlayerRoom = presence.moveRoom;
+
+// A public avatar id is usable only with the signed identity owning its socket.
+export function playerForVisitor(visitorId: string, playerId: string | undefined) {
+  if (!playerId) return undefined;
+  for (const ws of connections.get(visitorId) ?? []) {
+    const player = presence.playerFor(ws);
+    if (ws.readyState === WebSocket.OPEN && player?.id === playerId) return player;
+  }
+  return undefined;
+}
 
 const connections = new Map<string, Set<WebSocket>>(); // visitorId -> open sockets
 
 export function attachRealtime(httpServer: Server): void {
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+  let previousTick = performance.now();
+  const movementTimer = setInterval(() => {
+    const now = performance.now();
+    const message = presence.tick(now, (now - previousTick) / 1000);
+    previousTick = now;
+    if (message) broadcast(message);
+  }, 50);
+  movementTimer.unref();
+  const alive = new WeakSet<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (!alive.has(ws)) { ws.terminate(); continue; }
+      alive.delete(ws);
+      ws.ping();
+    }
+  }, 15000);
+  heartbeat.unref();
+  httpServer.once("close", () => {
+    clearInterval(movementTimer);
+    clearInterval(heartbeat);
+    for (const ws of wss.clients) ws.terminate();
+    wss.close();
+  });
 
   httpServer.on("upgrade", (req, socket, head) => {
     if (req.url !== "/ws") {
@@ -36,8 +67,19 @@ export function attachRealtime(httpServer: Server): void {
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (!connections.has(visitorId)) connections.set(visitorId, new Set());
       connections.get(visitorId)!.add(ws);
+      alive.add(ws);
+      ws.on("pong", () => alive.add(ws));
+      ws.on("error", () => ws.terminate());
+      const selfId = presence.join(ws);
+      ws.send(JSON.stringify({ type: "presence-welcome", selfId, players: presence.snapshot() }));
+      ws.on("message", (data, binary) => {
+        if (binary) return;
+        try { presence.input(ws, JSON.parse(data.toString()), performance.now()); }
+        catch { /* Malformed input never changes the world. */ }
+      });
       logAction(visitorId, "connected", { totalVisitors: connections.size });
       ws.on("close", () => {
+        presence.leave(ws);
         connections.get(visitorId)?.delete(ws);
         if (connections.get(visitorId)?.size === 0) connections.delete(visitorId);
         logAction(visitorId, "disconnected", { totalVisitors: connections.size });

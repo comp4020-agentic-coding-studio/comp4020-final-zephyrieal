@@ -1,3 +1,4 @@
+import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 // Potato wanders the outdoor meadow on her own --- CLAUDE.md: "Never
 // implement direct player control of a guinea pig... the guinea pig decides
 // what it does." Her position is ephemeral, in-memory state, like
@@ -57,11 +58,9 @@ export function pickNextTarget(
   return { targetX, targetY, durationMs };
 }
 
+function createWanderer(x: number, y: number) {
 let state: GuineaPigMovement = {
-  x: 50,
-  y: 50,
-  targetX: 50,
-  targetY: 50,
+  x, y, targetX: x, targetY: y,
   startedAt: Date.now(),
   durationMs: 0,
 };
@@ -74,7 +73,7 @@ let pauseUntil = state.startedAt + MIN_PAUSE_MS;
 // Returns Potato's actual position at `now`, interpolated along the current
 // walk --- never mutates anything, so /api/state and a freshly-connecting
 // client can read it as often as they like without disturbing the tick.
-export function currentPosition(now: number = Date.now()): GuineaPigMovement {
+function currentPosition(now: number = Date.now()): GuineaPigMovement {
   if (state.durationMs <= 0) return state;
   const elapsed = now - state.startedAt;
   if (elapsed >= state.durationMs) {
@@ -90,7 +89,7 @@ export function currentPosition(now: number = Date.now()): GuineaPigMovement {
 // decision was made, so the caller --- a setInterval in index.ts --- only
 // broadcasts on actual change, the same "diff before broadcast" discipline
 // the construction active-builder poller already uses.
-export function tick(now: number = Date.now(), random: () => number = Math.random): GuineaPigMovement | undefined {
+function tick(now: number = Date.now(), random: () => number = Math.random): GuineaPigMovement | undefined {
   const arrived = state.durationMs <= 0 || now - state.startedAt >= state.durationMs;
   if (!arrived) return undefined;
 
@@ -111,3 +110,9 @@ export function tick(now: number = Date.now(), random: () => number = Math.rando
   state = { x: arrivedX, y: arrivedY, targetX, targetY, startedAt: now, durationMs };
   return state;
 }
+
+return { currentPosition, tick };
+}
+const wanderers = new Map(GUINEA_PIGS.map(p => [p.id as string, createWanderer(p.x, p.y)]));
+export function currentPosition(now = Date.now(), id = "potato") { return wanderers.get(id)!.currentPosition(now); }
+export function tick(now = Date.now(), random = Math.random, id = "potato") { return wanderers.get(id)!.tick(now, random); }

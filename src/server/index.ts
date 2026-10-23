@@ -1,3 +1,7 @@
+import { isBuilding, isRoom, type Room } from "../shared/rooms.ts";
+import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
+import { farmState, changeFarm } from "./farm.ts";
+import { CROPS, FARM_PLOTS, FARM_REACH, isCrop } from "../shared/farm.ts";
 import express, { type Request, type Response, type NextFunction } from "express";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -5,9 +9,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { marked } from "marked";
 import { db } from "./db.ts";
-import { attachRealtime, broadcast, sendToVisitor } from "./realtime.ts";
+import { attachRealtime, broadcast, sendToVisitor, playerForVisitor, movePlayerRoom } from "./realtime.ts";
 import {
-  earnCarePoints,
   getBalance,
   getFurniture,
   getStoredFurniture,
@@ -16,7 +19,6 @@ import {
   storeFurniture,
   retrieveFurniture,
   type Rotation,
-  FEED_REWARD,
 } from "./furniture.ts";
 import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
@@ -35,7 +37,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..", "..");
 const publicDir = join(repoRoot, "public");
 
+import { inReach, sitePosition, FEED_REACH, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../shared/interactions.ts";
+
 const app = express();
+function requireNearby(req: Request, res: Response, x: number, y: number, reach: number, reason: string): boolean {
+  const player = playerForVisitor(req.visitorId, req.get("X-Player-Id"));
+  if (inReach(player, x, y, reach)) return true;
+  logAction(req.visitorId, "interaction-denied", { action: req.path, reason });
+  res.status(403).json({ ok: false, reason });
+  return false;
+}
 app.use(express.json());
 
 // Anonymous, persistent-per-browser identity: no accounts, no passwords. A
@@ -83,31 +94,15 @@ interface GuineaPig {
   last_fed_at: string | null;
 }
 
-function getPotato(): GuineaPig {
+function getPotato(id = "potato"): GuineaPig {
   return db
     .prepare(
-      "SELECT name, personality, feed_count, last_fed_at FROM guinea_pigs WHERE id = 'potato'",
+      "SELECT name, personality, feed_count, last_fed_at FROM guinea_pigs WHERE id = ?",
     )
-    .get() as unknown as GuineaPig;
+    .get(id) as unknown as GuineaPig;
 }
 
-interface Flower {
-  id: number;
-  x: number;
-  y: number;
-  planted_at: string;
-}
-
-function getFlowers(): Flower[] {
-  return db
-    .prepare("SELECT id, x, y, planted_at FROM flowers ORDER BY id ASC")
-    .all() as unknown as Flower[];
-}
-
-// The core thing, for now: see Potato, feed Potato, plant a flower, and find
-// the sanctuary remembers all of it. Everything else in the full design
-// (other guinea pigs, gestures, construction, more than one visitor at once)
-// waits for later weeks --- this is proof of life, not the finished app.
+// Shared persistent sanctuary state and current movement snapshots.
 app.get("/api/state", (req: Request, res: Response) => {
   const guineaPig = getPotato();
   // Potato's current position in the meadow --- ephemeral, in-memory state
@@ -116,9 +111,10 @@ app.get("/api/state", (req: Request, res: Response) => {
   // PROCESS.md's "Potato wanders the meadow" section for why her position
   // isn't a database column.
   const guineaPigMovement = currentGuineaPigPosition();
-  const flowers = getFlowers();
-  const furniture = getFurniture(db);
-  const storedFurniture = getStoredFurniture(db);
+  const farm = farmState(db);
+  const room = isRoom(req.query.room) && req.query.room !== "outdoor" ? req.query.room : "indoor";
+  const furniture = getFurniture(db, room);
+  const storedFurniture = getStoredFurniture(db, room);
   const carePoints = getBalance(db, req.visitorId);
   const construction = Object.fromEntries(
     PROJECTS.map((p) => [p.id, getConstructionState(db, p.id)]),
@@ -129,7 +125,8 @@ app.get("/api/state", (req: Request, res: Response) => {
   res.json({
     guineaPig,
     guineaPigMovement,
-    flowers,
+    guineaPigs: GUINEA_PIGS.map(p => ({ id: p.id, ...getPotato(p.id), movement: currentGuineaPigPosition(Date.now(), p.id) })),
+    farm,
     furniture,
     storedFurniture,
     carePoints,
@@ -143,21 +140,79 @@ app.get("/api/state", (req: Request, res: Response) => {
 // existing no-body call this route already supported keeps working; a client
 // that wants a feed to be retry-safe can supply its own.
 app.post("/api/feed", (req: Request, res: Response) => {
-  const { requestId } = (req.body ?? {}) as { requestId?: unknown };
-  const id = typeof requestId === "string" && requestId.length > 0 ? requestId : randomUUID();
-
-  db.prepare(
-    "UPDATE guinea_pigs SET feed_count = feed_count + 1, last_fed_at = datetime('now') WHERE id = 'potato'",
-  ).run();
-  db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, 'fed potato')").run(
-    req.visitorId,
-  );
-  const { balance } = earnCarePoints(db, req.visitorId, FEED_REWARD, "fed potato", id);
-  logAction(req.visitorId, "fed-potato", { balance });
-
-  sendToVisitor(req.visitorId, { type: "balance-updated", balance });
-  res.json({ guineaPig: getPotato(), balance });
+  const guineaPigId = req.body?.guineaPigId ?? "potato";
+  const inhabitant = GUINEA_PIGS.find(p => p.id === guineaPigId);
+  if (!inhabitant) { res.status(400).json({ ok: false, reason: "Choose a known guinea pig." }); return; }
+  const potato = currentGuineaPigPosition(Date.now(), guineaPigId);
+  if (!requireNearby(req, res, potato.x * MEADOW_WIDTH / 100, potato.y * MEADOW_HEIGHT / 100,
+      FEED_REACH, `Walk closer to ${inhabitant.name} to feed them.`)) return;
+  const { requestId = randomUUID(), crop = "hay" } = req.body ?? {};
+  if (typeof requestId !== "string" || !requestId || !isCrop(crop)) {
+    res.status(400).json({ ok: false, reason: "Choose a valid food and request id." }); return;
+  }
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const previous = db.prepare("SELECT crop, guinea_pig_id FROM feed_requests WHERE visitor_id = ? AND request_id = ?").get(req.visitorId, requestId) as { crop: string; guinea_pig_id: string } | undefined;
+    if (previous && (previous.crop !== crop || previous.guinea_pig_id !== guineaPigId)) {
+      db.exec("ROLLBACK"); res.status(409).json({ ok: false, reason: "That request was used for another food." }); return;
+    }
+    if (!previous) {
+      const stock = db.prepare("SELECT quantity FROM farm_food WHERE crop = ?").get(crop) as { quantity: number };
+      // Basic hay remains available while the shared garden grows; harvested
+      // vegetables are extra choices, not a requirement for the first feeding.
+      if (crop !== "hay" && stock.quantity < 1) {
+        db.exec("ROLLBACK"); res.status(409).json({ ok: false, reason: "Harvest this food from the farm first." }); return;
+      }
+      if (stock.quantity > 0) db.prepare("UPDATE farm_food SET quantity = quantity - 1 WHERE crop = ?").run(crop);
+      db.prepare("UPDATE guinea_pigs SET feed_count = feed_count + 1, last_fed_at = datetime('now') WHERE id = ?").run(guineaPigId);
+      db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, ?)").run(req.visitorId, `fed ${guineaPigId} ${crop}`);
+      db.prepare("INSERT INTO care_point_transactions (visitor_id, delta, reason, request_id) VALUES (?, ?, ?, ?)").run(req.visitorId, CROPS[crop].carePoints, `fed ${guineaPigId}`, `${req.visitorId}:${requestId}`);
+      db.prepare("INSERT INTO feed_requests (visitor_id, request_id, crop, guinea_pig_id) VALUES (?, ?, ?, ?)").run(req.visitorId, requestId, crop, guineaPigId);
+    }
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
+    const balance = getBalance(db, req.visitorId);
+    logAction(req.visitorId, "fed-guinea-pig", { guineaPigId, crop, balance });
+    sendToVisitor(req.visitorId, { type: "balance-updated", balance });
+    broadcast({ type: "guinea-pig-fed", guineaPigId, guineaPig: getPotato(guineaPigId) });
+    broadcast({ type: "farm-updated", farm: farmState(db) });
+    res.json({ ok: true, guineaPigId, guineaPig: getPotato(guineaPigId), balance });
 });
+
+// Enter only finished buildings from their nearby doorway. Interiors are public.
+app.post("/api/room", (req: Request, res: Response) => {
+  const player = playerForVisitor(req.visitorId, req.get("X-Player-Id"));
+  const room = req.body?.room;
+  if (!player || !isRoom(room)) { res.status(403).json({ ok: false, reason: "Reconnect before changing rooms." }); return; }
+  let position: {x: number; y: number} | undefined;
+  if (room.startsWith("house:")) {
+    const id = room.slice(6);
+    const site = sitePosition(id);
+    if (!isBuilding(id) || getConstructionState(db, id).status !== "completed" || !site || !inReach(player, site.x, site.y, BUILD_REACH)) {
+      res.status(403).json({ ok: false, reason: "Walk up to a completed building to enter it." }); return;
+    }
+  } else if (room === "outdoor" && player.room.startsWith("house:")) {
+    const site = sitePosition(player.room.slice(6));
+    if (site) position = { x: site.x, y: site.y + 40 };
+  }
+  movePlayerRoom(player.id, room, position);
+  logAction(req.visitorId, "room-changed", { room });
+  res.json({ ok: true, room });
+});
+
+// Legacy clients without an avatar can decorate the original shelter only.
+// A supplied avatar must be authenticated and physically inside its room.
+function furnitureRoom(req: Request, res: Response, itemId?: number): string | undefined {
+  const supplied = req.get("X-Player-Id");
+  const player = playerForVisitor(req.visitorId, supplied);
+  const room = supplied ? player?.room : "indoor";
+  if (!room || room === "outdoor") { res.status(403).json({ ok: false, reason: "Go inside to decorate this room." }); return; }
+  if (itemId !== undefined) {
+    const item = db.prepare("SELECT room_id FROM furniture WHERE id = ?").get(itemId) as {room_id: string} | undefined;
+    if (item && item.room_id !== room) { res.status(403).json({ ok: false, reason: "That furniture belongs in another shared room." }); return; }
+  }
+  return room;
+}
 
 // Places a piece of furniture in the shared house, spending Care Points. The
 // whole check (balance, tile validity) and commit happens inside
@@ -186,7 +241,8 @@ app.post("/api/furniture/place", (req: Request, res: Response) => {
     return;
   }
 
-  const result = placeFurniture(db, req.visitorId, kind, tileX, tileY, requestId);
+  const room = furnitureRoom(req, res); if (!room) return;
+  const result = placeFurniture(db, req.visitorId, kind, tileX, tileY, requestId, room);
   if (!result.ok) {
     logAction(req.visitorId, "furniture-place-denied", { kind, tileX, tileY, reason: result.reason });
     res.status(409).json(result);
@@ -240,6 +296,7 @@ app.post("/api/furniture/edit", (req: Request, res: Response) => {
     return;
   }
 
+  if (!furnitureRoom(req, res, id)) return;
   const result = editFurniture(db, id, tileX, tileY, rotation, version, requestId);
   if (!result.ok) {
     logAction(req.visitorId, "furniture-edit-denied", { id, tileX, tileY, rotation, reason: result.reason });
@@ -280,6 +337,7 @@ app.post("/api/furniture/store", (req: Request, res: Response) => {
     return;
   }
 
+  if (!furnitureRoom(req, res, id)) return;
   const result = storeFurniture(db, id, version, requestId);
   if (!result.ok) {
     logAction(req.visitorId, "furniture-store-denied", { id, reason: result.reason });
@@ -322,6 +380,7 @@ app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
     return;
   }
 
+  if (!furnitureRoom(req, res, id)) return;
   const result = retrieveFurniture(db, id, tileX, tileY, rotation, version, requestId);
   if (!result.ok) {
     logAction(req.visitorId, "furniture-retrieve-denied", { id, tileX, tileY, reason: result.reason });
@@ -338,31 +397,23 @@ app.post("/api/furniture/retrieve", (req: Request, res: Response) => {
   broadcast({ type: "furniture-retrieved", furniture: result.furniture });
 });
 
-// A flower is planted at a position in the meadow and stays there for every
-// future visitor --- the server decides what actually gets stored (clamped,
-// validated coordinates), never trusting the client's number outright, per
-// CLAUDE.md's "the server is authoritative" rule.
-app.post("/api/plant", (req: Request, res: Response) => {
-  const { x, y } = req.body as { x?: unknown; y?: unknown };
-  if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
-    logAction(req.visitorId, "plant-rejected", { reason: "x and y must be numbers" });
-    res.status(400).json({ error: "x and y must be numbers" });
-    return;
-  }
-  const clampedX = Math.min(100, Math.max(0, x));
-  const clampedY = Math.min(100, Math.max(0, y));
-
-  db.prepare("INSERT INTO flowers (x, y, planted_by) VALUES (?, ?, ?)").run(
-    clampedX,
-    clampedY,
-    req.visitorId,
-  );
-  db.prepare("INSERT INTO visits (visitor_id, action) VALUES (?, 'planted a flower')").run(
-    req.visitorId,
-  );
-  logAction(req.visitorId, "planted-flower", { x: clampedX, y: clampedY });
-  res.json({ flowers: getFlowers() });
-});
+// Farm actions require this tab's authenticated nearby avatar. Versioning and
+// request ids protect shared plots against double planting or harvesting.
+for (const action of ["plant", "harvest"] as const) {
+  app.post(`/api/farm/${action}`, (req: Request, res: Response) => {
+    const { plotId, crop, version, requestId } = req.body ?? {};
+    const plot = FARM_PLOTS.find(p => p.id === plotId);
+    if (!plot || !Number.isInteger(version) || typeof requestId !== "string" || !requestId || (action === "plant" && !isCrop(crop))) {
+      res.status(400).json({ ok: false, reason: "Choose a valid plot and crop." }); return;
+    }
+    if (!requireNearby(req, res, plot.x, plot.y, FARM_REACH, "Walk closer to this farm plot.")) return;
+    const result = changeFarm(db, req.visitorId, action, plotId, action === "plant" ? crop : undefined, version, requestId);
+    if (!result.ok) { res.status(409).json({ ...result, farm: farmState(db) }); return; }
+    logAction(req.visitorId, `farm-${action}`, { plotId, crop, replay: result.replay });
+    broadcast({ type: "farm-updated", farm: result.farm });
+    res.json(result);
+  });
+}
 
 // A "Build!" click. No client-sent progress value is ever accepted --- the
 // server alone decides how many units a click is worth, based on how many
@@ -384,6 +435,9 @@ app.post("/api/construction/contribute", (req: Request, res: Response) => {
     return;
   }
 
+  const site = sitePosition(projectId);
+  if (!site || !requireNearby(req, res, site.x, site.y, BUILD_REACH,
+      "Walk up to this building to help build it.")) return;
   const result = contribute(db, req.visitorId, projectId, requestId);
   if (!result.ok) {
     logAction(req.visitorId, "construction-contribute-denied", { projectId, reason: result.reason });
@@ -405,6 +459,7 @@ app.post("/api/construction/contribute", (req: Request, res: Response) => {
   }
 
   res.json(result);
+  if (!result.replay) broadcast({ type: "construction-dust", projectId });
   broadcast({
     type: "construction-progress",
     projectId,
@@ -464,8 +519,8 @@ setInterval(() => {
     }
   }
 
-  const movement = tickGuineaPig();
-  if (movement) {
-    broadcast({ type: "guinea-pig-walking", ...movement });
+  for (const pig of GUINEA_PIGS) {
+    const movement = tickGuineaPig(Date.now(), Math.random, pig.id);
+    if (movement) broadcast({ type: "guinea-pig-walking", guineaPigId: pig.id, ...movement });
   }
 }, 1000);

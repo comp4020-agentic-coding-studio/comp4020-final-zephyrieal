@@ -1,3 +1,4 @@
+import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -210,4 +211,34 @@ for (const project of PROJECTS) {
        VALUES (?, 0, 'in_progress', 0)`,
     ).run(project.id);
   }
+}
+
+// Shared garden and pantry. Absolute ready times survive disconnects and restarts.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS farm_plots (
+    id INTEGER PRIMARY KEY, crop TEXT, planted_at INTEGER, ready_at INTEGER,
+    version INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS farm_food (crop TEXT PRIMARY KEY, quantity INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0));
+  CREATE TABLE IF NOT EXISTS farm_requests (
+    visitor_id TEXT NOT NULL, request_id TEXT NOT NULL, fingerprint TEXT NOT NULL,
+    PRIMARY KEY(visitor_id, request_id)
+  );
+  CREATE TABLE IF NOT EXISTS feed_requests (
+    visitor_id TEXT NOT NULL, request_id TEXT NOT NULL, crop TEXT NOT NULL,
+    PRIMARY KEY(visitor_id, request_id)
+  );
+`);
+for (let id = 0; id < 1; id++) db.prepare("INSERT OR IGNORE INTO farm_plots (id) VALUES (?)").run(id);
+for (const crop of ["hay", "lettuce", "pepper", "cucumber"]) db.prepare("INSERT OR IGNORE INTO farm_food (crop) VALUES (?)").run(crop);
+
+for (const pig of GUINEA_PIGS) {
+  db.prepare("INSERT OR IGNORE INTO guinea_pigs (id, name, personality, feed_count, last_fed_at) VALUES (?, ?, ?, 0, NULL)").run(pig.id, pig.name, pig.personality);
+}
+if (!(db.prepare("PRAGMA table_info(feed_requests)").all() as { name: string }[]).some(c => c.name === "guinea_pig_id")) {
+  db.exec("ALTER TABLE feed_requests ADD COLUMN guinea_pig_id TEXT NOT NULL DEFAULT 'potato'");
+}
+
+if (!(db.prepare("PRAGMA table_info(furniture)").all() as { name: string }[]).some(c => c.name === "room_id")) {
+  db.exec("ALTER TABLE furniture ADD COLUMN room_id TEXT NOT NULL DEFAULT 'indoor'");
 }

@@ -1,3 +1,4 @@
+import { CROPS } from "../shared/farm.ts";
 import type { DatabaseSync } from "node:sqlite";
 
 // One shared guinea-pig house, one fixed tile grid. Tile coordinates are
@@ -17,7 +18,7 @@ export type FurnitureKind = keyof typeof FURNITURE_CATALOG;
 
 // How many Care Points one feeding earns. Feeding is the only way to earn
 // points right now --- see CLAUDE.md's Care Points exception.
-export const FEED_REWARD = 10;
+export const FEED_REWARD = CROPS.hay.carePoints;
 
 // A border wall ring with a one-tile entrance gap at the bottom-centre.
 // Expressed as "x,y" string keys so it composes with the overlap check below.
@@ -44,6 +45,7 @@ export type Rotation = 0 | 90 | 180 | 270;
 export type FurnitureStatus = "placed" | "stored";
 
 export interface FurnitureRow {
+  room_id: string;
   id: number;
   kind: string;
   tile_x: number;
@@ -154,16 +156,16 @@ export function getBalance(db: DatabaseSync, visitorId: string): number {
   return row.balance;
 }
 
-export function getFurniture(db: DatabaseSync): FurnitureRow[] {
+export function getFurniture(db: DatabaseSync, room = "indoor"): FurnitureRow[] {
   return db
-    .prepare("SELECT * FROM furniture WHERE status = 'placed' ORDER BY id ASC")
-    .all() as unknown as FurnitureRow[];
+    .prepare("SELECT * FROM furniture WHERE status = 'placed' AND room_id = ? ORDER BY id ASC")
+    .all(room) as unknown as FurnitureRow[];
 }
 
-export function getStoredFurniture(db: DatabaseSync): FurnitureRow[] {
+export function getStoredFurniture(db: DatabaseSync, room = "indoor"): FurnitureRow[] {
   return db
-    .prepare("SELECT * FROM furniture WHERE status = 'stored' ORDER BY id ASC")
-    .all() as unknown as FurnitureRow[];
+    .prepare("SELECT * FROM furniture WHERE status = 'stored' AND room_id = ? ORDER BY id ASC")
+    .all(room) as unknown as FurnitureRow[];
 }
 
 export interface EarnResult {
@@ -224,6 +226,7 @@ export function placeFurniture(
   tileX: number,
   tileY: number,
   requestId: string,
+  room = "indoor",
 ): PlaceResult {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -248,8 +251,8 @@ export function placeFurniture(
     }
 
     const existing = db
-      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed'")
-      .all() as unknown as FootprintRow[];
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed' AND room_id = ?")
+      .all(room) as unknown as FootprintRow[];
     const placement = isValidPlacement(kind, tileX, tileY, existing);
     if (!placement.ok) {
       db.exec("ROLLBACK");
@@ -258,9 +261,9 @@ export function placeFurniture(
 
     const result = db
       .prepare(
-        "INSERT INTO furniture (kind, tile_x, tile_y, width, height, placed_by, request_id) VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO furniture (kind, tile_x, tile_y, width, height, placed_by, request_id, room_id) VALUES (?,?,?,?,?,?,?,?)",
       )
-      .run(kind, tileX, tileY, def.width, def.height, visitorId, requestId);
+      .run(kind, tileX, tileY, def.width, def.height, visitorId, requestId, room);
 
     db.prepare(
       "INSERT INTO care_point_transactions (visitor_id, delta, reason, request_id) VALUES (?, ?, ?, ?)",
@@ -348,8 +351,8 @@ export function editFurniture(
     }
 
     const existing = db
-      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed' AND id != ?")
-      .all(id) as unknown as FootprintRow[];
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed' AND id != ? AND room_id = ?")
+      .all(id, current.room_id) as unknown as FootprintRow[];
     const placement = isValidPlacement(current.kind, tileX, tileY, existing, rotation);
     if (!placement.ok) {
       db.exec("ROLLBACK");
@@ -471,8 +474,8 @@ export function retrieveFurniture(
     }
 
     const existing = db
-      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed'")
-      .all() as unknown as FootprintRow[];
+      .prepare("SELECT tile_x, tile_y, width, height FROM furniture WHERE status = 'placed' AND room_id = ?")
+      .all(current.room_id) as unknown as FootprintRow[];
     const placement = isValidPlacement(current.kind, tileX, tileY, existing, rotation);
     if (!placement.ok) {
       db.exec("ROLLBACK");

@@ -1,3 +1,4 @@
+import { interactionFetch as fetch } from "./nearby-client.ts";
 import { expect, inject, it } from "vitest";
 
 // The crit 8 spec's actual bar: "a stranger can visit, do the core thing, and
