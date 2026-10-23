@@ -10,7 +10,7 @@ that model. This is checked by hand instead.
 ## Scenario 5: furniture and Care Points survive a server restart
 
 1. `pnpm build && pnpm start` (or deploy and use the live URL).
-2. In a browser: feed Potato a few times, note the Care Points balance; place
+2. In a browser: feed Huahua a few times, note the Care Points balance; place
    a piece of furniture, note its kind and tile position.
 3. `GET /api/state` and save the JSON (or just note `carePoints` and the
    `furniture` array shown in the browser).
@@ -88,7 +88,7 @@ judgment about the logs' readability, not a thing to assert in `vitest`.
 2. In a terminal, tail the server's logs (`mise exec -- flyctl logs -a
    <repo>` for the deployed app, or just watch stdout for `pnpm start`
    locally).
-3. From profile A: feed Potato, plant a flower, place one piece of
+3. From profile A: feed Huahua, plant a flower, place one piece of
    furniture, contribute to one construction project.
 4. From profile B: do the same four actions.
 5. Confirm, from the log output alone, with no clicking through either

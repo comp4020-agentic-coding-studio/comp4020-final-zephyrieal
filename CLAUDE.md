@@ -35,7 +35,7 @@ leaderboard, loot, streak, or XP system rides along with it.
 
 Never implement direct player control of a guinea pig. Players influence
 behaviour through proximity, gestures, food and structures; the guinea pig
-decides what it does. There's a small, persistent, named population (Potato is
+decides what it does. There's a small, persistent, named population (Huahua is
 the first), not animals spawned per visitor or per session.
 
 ## One shared world

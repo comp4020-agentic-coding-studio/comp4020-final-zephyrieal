@@ -1,5 +1,5 @@
 export const BUILDING_ROOMS = {
-  "guinea-pig-house": { name: "Potato's house", color: "#f7e7cb" },
+  "guinea-pig-house": { name: "Huahua's house", color: "#f7e7cb" },
   toolshed: { name: "The toolshed", color: "#ead7be" },
   greenhouse: { name: "The greenhouse", color: "#dcebd2" },
   "great-hall": { name: "The great hall", color: "#e5dded" },

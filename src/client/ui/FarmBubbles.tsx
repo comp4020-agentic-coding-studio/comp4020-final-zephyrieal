@@ -49,10 +49,10 @@ export function FarmBubbles() {
     {current && reachable && plot && <div className="farm-menu" role="dialog" aria-label="Shared farm options"
       style={menuPosition(current.x, current.y - 45)} onPointerDown={e => e.stopPropagation()}>
       <button className="bubble-close" aria-label="Close farm" onClick={() => setSelected(null)}>×</button>
-      {!plot.crop ? <><strong>Plant food for Potato</strong><div className="crop-choices">
+      {!plot.crop ? <><strong>Plant food for Huahua</strong><div className="crop-choices">
         {CROP_KEYS.filter(crop => crop !== "carrot").map(crop => <button key={crop} disabled={busy} onClick={() => tend("plant", crop)}>{CROPS[crop].name}</button>)}
       </div></> : now >= plot.readyAt! ? <><strong>{CROPS[plot.crop].name} is ready!</strong>
-        <button disabled={busy} onClick={() => tend("harvest")}>Harvest for Potato</button></>
+        <button disabled={busy} onClick={() => tend("harvest")}>Harvest for Huahua</button></>
         : <><strong>Growing {CROPS[plot.crop].name.toLowerCase()}</strong><p>Ready in {Math.ceil((plot.readyAt! - now) / 1000)}s</p></>}
       <small>Public garden · anyone can plant or harvest</small>
     </div>}

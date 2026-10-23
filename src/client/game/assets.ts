@@ -7,7 +7,7 @@ import tileFloor from "../assets/sprites/tile-floor.png";
 import tileWall from "../assets/sprites/tile-wall.png";
 import grassTile from "../assets/sprites/grass-tile.png";
 import flower from "../assets/sprites/flower.png";
-import guineaPig from "../assets/sprites/guinea-pig-minimal.png";
+import guineaPig from "../assets/sprites/guinea-pig-huahua-tricolour.png";
 import hayBedFront from "../assets/sprites/furniture-cozy.png";
 import hayBedBack from "../assets/sprites/furniture-cozy.png";
 import hayBedLeft from "../assets/sprites/furniture-cozy.png";

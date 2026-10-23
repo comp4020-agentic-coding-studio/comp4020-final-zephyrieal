@@ -41,10 +41,10 @@ export async function walkTo(page: Page, target: string | { x: number; y: number
     throw new Error("Could not walk to interaction");
   } finally { for (const key of held) await page.keyboard.up(key); }
 }
-export async function feedPotato(page: Page) {
+export async function feedHuahua(page: Page) {
   await walkTo(page, "feed");
-  await page.getByRole("button", { name: "Feed Potato", exact: true }).click();
+  await page.getByRole("button", { name: "Feed Huahua", exact: true }).click();
   const response = page.waitForResponse(r => r.url().endsWith("/api/feed") && r.request().method() === "POST");
-  await page.getByRole("dialog", { name: "Feed Potato food choices" }).getByRole("button", { name: "Hay", exact: true }).click();
+  await page.getByRole("dialog", { name: "Feed Huahua food choices" }).getByRole("button", { name: "Hay", exact: true }).click();
   expect((await response).status()).toBe(200);
 }

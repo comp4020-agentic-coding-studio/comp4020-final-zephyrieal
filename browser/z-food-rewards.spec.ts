@@ -6,8 +6,8 @@ test("harvested cucumber awards its own reward once, ignoring a claimed reward",
   await walkTo(page, {x:276,y:206}, 50);
   await page.getByRole("button", {name:"Shared farm",exact:true}).click();
   await page.getByRole("dialog", {name:"Shared farm options"}).getByRole("button",{name:"Cucumbers",exact:true}).click();
-  await page.getByRole("button", {name:"Harvest for Potato",exact:true}).waitFor({timeout:50000});
-  await page.getByRole("button", {name:"Harvest for Potato",exact:true}).click();
+  await page.getByRole("button", {name:"Harvest for Huahua",exact:true}).waitFor({timeout:50000});
+  await page.getByRole("button", {name:"Harvest for Huahua",exact:true}).click();
   await page.getByRole("button", {name:"Close farm"}).click();
   await walkTo(page, "mochi", 20);
   const before = await page.request.get("/api/state").then(r=>r.json());

@@ -6,7 +6,7 @@ import { sanctuaryState } from "./sanctuaryState.ts";
 // Native pixel shapes keep the garden legible alongside the chunky sprites.
 export function addFarm(scene: Phaser.Scene) {
   const graphics = scene.add.graphics().setDepth(1);
-  const title = scene.add.text(FARM_PLOTS[0].x, FARM_PLOTS[0].y - 48, "POTATO’S GARDEN", { fontFamily: "monospace", fontSize: "9px", color: "#fff2d5", backgroundColor: "#76543a", padding: { x: 5, y: 3 } }).setOrigin(0.5);
+  const title = scene.add.text(FARM_PLOTS[0].x, FARM_PLOTS[0].y - 48, "HUAHUA’S GARDEN", { fontFamily: "monospace", fontSize: "9px", color: "#fff2d5", backgroundColor: "#76543a", padding: { x: 5, y: 3 } }).setOrigin(0.5);
   title.setDepth(2);
   let last = -Infinity;
   const draw = (time: number) => {

@@ -22,9 +22,9 @@ There are no individually owned guinea pigs, private houses, XP, leaderboards or
 
 ## What's here now
 
-The sanctuary has four guinea pigs: Potato, Mochi, Biscuit and Clover. Each wanders independently and can be fed nearby. Visitors can feed her — the sanctuary remembers how many times and when, for whoever opens the page next — and grow food in one public garden bed. Walk nearby and click the soil to choose hay, lettuce, bell peppers or cucumbers. Anyone can harvest a mature crop, including crops planted by another visitor.
+The sanctuary has four guinea pigs: Huahua, Mochi, Biscuit and Clover. Each wanders independently and can be fed nearby. Visitors can feed her — the sanctuary remembers how many times and when, for whoever opens the page next — and grow food in one public garden bed. Walk nearby and click the soil to choose hay, lettuce, bell peppers or cucumbers. Anyone can harvest a mature crop, including crops planted by another visitor.
 
-Just behind the meadow is Potato's house: a small, shared room where everyone who visits earns their own Care Points by feeding her, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
+Just behind the meadow is Huahua's house: a small, shared room where everyone who visits earns their own Care Points by feeding her, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
 
 ## Walking together
 
@@ -37,7 +37,7 @@ walking directions.
 
 Visitors in the same meadow or house see each other's movements live. Use
 **Go inside / Go back outside** to change rooms. Furniture placement keeps its
-existing controls and pauses walking while a piece is selected. Potato still
+existing controls and pauses walking while a piece is selected. Huahua still
 wanders independently.
 
 Presence lasts only while connected. Departing visitors disappear; reconnecting
@@ -59,7 +59,7 @@ Other parts need to be judged by people. During crits I want to watch whether vi
 
 ## Shared garden and nearby interactions
 
-Walk up to Potato to reveal Feed (or press E), then choose a snack. Walk up to a building to reveal Build. The server checks the position of your authenticated avatar for feeding, building, planting and harvesting.
+Walk up to Huahua to reveal Feed (or press E), then choose a snack. Walk up to a building to reveal Build. The server checks the position of your authenticated avatar for feeding, building, planting and harvesting.
 
 The single garden bed belongs to everyone. Click it while nearby to plant one crop across the whole bed. Hay grows in 30 seconds, lettuce and cucumbers in 45 seconds, and bell peppers in 60 seconds. Harvesting adds three portions to a public food supply. Basic hay is always available for feeding while the garden grows. Flower planting has been removed.
 

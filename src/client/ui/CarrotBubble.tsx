@@ -21,6 +21,7 @@ export function CarrotBubble() {
   const ready = now >= state.readyAt;
   const joined = state.pullers.includes(self.id);
   const close = inReach(self, C.x, C.y, C.reach);
+  if (!close) return null;
   const message = !ready ? "Pulled together! +3 carrots for everyone · growing again"
     : state.pullers.length >= 2 ? `Pulling together… ${Math.min(100,Math.floor(state.progressMs/C.pullMs*100))}%`
     : state.pullers.length ? "One visitor pulling · join in!" : "Giant carrot · needs two visitors";

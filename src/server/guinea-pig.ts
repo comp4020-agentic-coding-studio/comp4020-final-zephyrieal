@@ -1,6 +1,6 @@
 import type { Room } from "../shared/rooms.ts";
 import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
-// Potato wanders the outdoor meadow on her own --- CLAUDE.md: "Never
+// Huahua wanders the outdoor meadow on her own --- CLAUDE.md: "Never
 // implement direct player control of a guinea pig... the guinea pig decides
 // what it does." Her position is ephemeral, in-memory state, like
 // construction's active-builder tracking (ADR 003: "who's actively
@@ -8,7 +8,7 @@ import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 // ephemeral, in-memory, reconstructed... never permanent world state").
 // CLAUDE.md's Persistence principle ("if an interaction is presented to the
 // visitor as permanent, it must survive a restart") doesn't apply here ---
-// nobody is promised Potato will be in a specific spot; a restart simply
+// nobody is promised Huahua will be in a specific spot; a restart simply
 // resets her to the meadow's center, same as it always has, and that's not
 // a broken trace the way losing a planted flower would be.
 //
@@ -46,7 +46,7 @@ function clampToMeadow(value: number): number {
 }
 
 // Picks a new nearby point to walk to and how long that walk should take,
-// given where Potato currently is. Nearby, not anywhere in the meadow, so
+// given where Huahua currently is. Nearby, not anywhere in the meadow, so
 // she ambles rather than teleporting across the whole space in one go.
 export function pickNextTarget(
   fromX: number,
@@ -73,7 +73,7 @@ let state: GuineaPigMovement = {
 // a third state field on the broadcast payload.
 let pauseUntil = state.startedAt + MIN_PAUSE_MS;
 
-// Returns Potato's actual position at `now`, interpolated along the current
+// Returns Huahua's actual position at `now`, interpolated along the current
 // walk --- never mutates anything, so /api/state and a freshly-connecting
 // client can read it as often as they like without disturbing the tick.
 function currentPosition(now: number = Date.now()): GuineaPigMovement {

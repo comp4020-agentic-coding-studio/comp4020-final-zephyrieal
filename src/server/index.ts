@@ -96,7 +96,7 @@ interface GuineaPig {
   last_fed_at: string | null;
 }
 
-function getPotato(id = "potato"): GuineaPig {
+function getHuahua(id = "potato"): GuineaPig {
   return db
     .prepare(
       "SELECT name, personality, feed_count, last_fed_at FROM guinea_pigs WHERE id = ?",
@@ -106,11 +106,11 @@ function getPotato(id = "potato"): GuineaPig {
 
 // Shared persistent sanctuary state and current movement snapshots.
 app.get("/api/state", (req: Request, res: Response) => {
-  const guineaPig = getPotato();
-  // Potato's current position in the meadow --- ephemeral, in-memory state
+  const guineaPig = getHuahua();
+  // Huahua's current position in the meadow --- ephemeral, in-memory state
   // kept separate from the guineaPig object above, which mirrors the
   // persistent guinea_pigs table. See src/server/guinea-pig.ts and
-  // PROCESS.md's "Potato wanders the meadow" section for why her position
+  // PROCESS.md's "Huahua wanders the meadow" section for why her position
   // isn't a database column.
   const guineaPigMovement = inhabitantPosition("potato");
   const farm = farmState(db);
@@ -127,7 +127,7 @@ app.get("/api/state", (req: Request, res: Response) => {
   res.json({
     guineaPig,
     guineaPigMovement,
-    guineaPigs: GUINEA_PIGS.map(p => ({ id: p.id, ...getPotato(p.id), movement: inhabitantPosition(p.id) })),
+    guineaPigs: GUINEA_PIGS.map(p => ({ id: p.id, ...getHuahua(p.id), movement: inhabitantPosition(p.id) })),
     farm,
     furniture,
     storedFurniture,
@@ -177,9 +177,9 @@ app.post("/api/feed", (req: Request, res: Response) => {
     const balance = getBalance(db, req.visitorId);
     logAction(req.visitorId, "fed-guinea-pig", { guineaPigId, crop, balance });
     sendToVisitor(req.visitorId, { type: "balance-updated", balance });
-    broadcast({ type: "guinea-pig-fed", guineaPigId, guineaPig: getPotato(guineaPigId) });
+    broadcast({ type: "guinea-pig-fed", guineaPigId, guineaPig: getHuahua(guineaPigId) });
     broadcast({ type: "farm-updated", farm: farmState(db) });
-    res.json({ ok: true, guineaPigId, guineaPig: getPotato(guineaPigId), balance });
+    res.json({ ok: true, guineaPigId, guineaPig: getHuahua(guineaPigId), balance });
 });
 
 // Enter only finished buildings from their nearby doorway. Interiors are public.
@@ -537,7 +537,7 @@ attachRealtime(httpServer);
 // visitors the multiplier just dropped. This is the only thing this tick is
 // for --- it broadcasts only when a given project's active-builder count
 // actually changed since that project's own last tick, not on every tick,
-// and tracks each project independently. Potato's own walking decisions
+// and tracks each project independently. Huahua's own walking decisions
 // (src/server/guinea-pig.ts) share this same one-second tick rather than
 // running a second timer --- there's no behavioral reason for her movement
 // to poll on a different cadence than construction's own "has anything

@@ -21,7 +21,7 @@ export function PlayerControls() {
   }, []);
   const stop = () => EventBus.emit("visitor-touch", { dx: 0, dy: 0 });
   return <div className="player-controls">
-    <p className="shop-hint">Your character is labelled “You”. Focus the meadow, then use <strong>WASD or arrow keys</strong> to walk, or hold a direction below. Walk up to Potato or a building and press <strong>E</strong>; click the shared farm to grow food. Nearby bubbles can also be tapped.</p>
+    <p className="shop-hint">Your character is labelled “You”. Focus the meadow, then use <strong>WASD or arrow keys</strong> to walk, or hold a direction below. Walk up to Huahua or a building and press <strong>E</strong>; click the shared farm to grow food. Nearby bubbles can also be tapped.</p>
     <p className="presence-status" role="status">{status}</p>
     <div className="gesture-buttons" role="group" aria-label="Gestures">
       {([{ gesture: "wave", label: "Wave" }, { gesture: "sit", label: sitting ? "Stand up" : "Sit" },

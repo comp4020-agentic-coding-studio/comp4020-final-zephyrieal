@@ -16,7 +16,7 @@ export interface ProjectConfig {
 }
 
 export const PROJECTS: ProjectConfig[] = [
-  { id: "guinea-pig-house", name: "Potato's house", targetUnits: 10_000 },
+  { id: "guinea-pig-house", name: "Huahua's house", targetUnits: 10_000 },
   { id: "toolshed", name: "The toolshed", targetUnits: 50_000 },
   { id: "greenhouse", name: "The greenhouse", targetUnits: 200_000 },
   { id: "bridge", name: "The meadow bridge", targetUnits: 500_000 },

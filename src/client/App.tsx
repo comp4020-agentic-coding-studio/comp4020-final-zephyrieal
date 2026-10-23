@@ -12,10 +12,10 @@ import { PROJECTS } from "../server/construction.ts";
 
 function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
   if (!guineaPig) return "Loading the sanctuary's memory…";
-  if (guineaPig.feed_count === 0) return "Nobody has fed Potato yet. Be the first.";
+  if (guineaPig.feed_count === 0) return "Nobody has fed Huahua yet. Be the first.";
   const lastFed = new Date(`${guineaPig.last_fed_at}Z`).toLocaleString();
   return (
-    `Potato has been fed ${guineaPig.feed_count} time` +
+    `Huahua has been fed ${guineaPig.feed_count} time` +
     `${guineaPig.feed_count === 1 ? "" : "s"} by visitors to this sanctuary. ` +
     `Last fed ${lastFed}.`
   );
@@ -57,13 +57,13 @@ export default function App() {
       <h1>Guinea Pig Sanctuary</h1>
       <p className="intro">
         A small, shared meadow and the house just behind it. Right now there's
-        four guinea pigs here — <strong>Potato, Mochi, Biscuit and Clover</strong> — and whatever you leave
+        four guinea pigs here — <strong>Huahua, Mochi, Biscuit and Clover</strong> — and whatever you leave
         behind, outside or in, stays for the next visitor.
       </p>
 
       <section className="meadow-wrap">
         <p className="guinea-pig">
-          🐹 <span>{guineaPig?.name ?? "Potato"}</span> is in the sanctuary,
+          🐹 <span>{guineaPig?.name ?? "Huahua"}</span> is in the sanctuary,
           looking <span>{guineaPig?.personality ?? "curious"}</span>.
         </p>
         <p aria-live="polite">{traceText(guineaPig)}</p>
@@ -111,7 +111,7 @@ export default function App() {
 
         {rejection && <p className="rejection" role="alert">{rejection}</p>}
 
-        <p className="shop-hint">The shared garden grows food for Potato. Walk up to the public garden and choose what to plant. Anyone can plant or harvest.</p>
+        <p className="shop-hint">The shared garden grows food for Huahua. Walk up to the public garden and choose what to plant. Anyone can plant or harvest.</p>
 
       </section>
 

@@ -185,14 +185,14 @@ db.exec(`
   ON construction_contributions (project_id);
 `);
 
-// Potato is the sanctuary's one persistent guinea pig --- a single shared
+// Huahua is the sanctuary's one persistent guinea pig --- a single shared
 // inhabitant, not spawned per visitor or per session (see README, "Nobody
 // owns the guinea pigs"). Seeded once; later visits just update this row.
 const existing = db.prepare("SELECT id FROM guinea_pigs WHERE id = ?").get("potato");
 if (!existing) {
   db.prepare(
     `INSERT INTO guinea_pigs (id, name, personality, feed_count, last_fed_at)
-     VALUES ('potato', 'Potato', 'curious', 0, NULL)`,
+     VALUES ('potato', 'Huahua', 'curious', 0, NULL)`,
   ).run();
 }
 
@@ -242,3 +242,6 @@ if (!(db.prepare("PRAGMA table_info(feed_requests)").all() as { name: string }[]
 if (!(db.prepare("PRAGMA table_info(furniture)").all() as { name: string }[]).some(c => c.name === "room_id")) {
   db.exec("ALTER TABLE furniture ADD COLUMN room_id TEXT NOT NULL DEFAULT 'indoor'");
 }
+
+// Rename the existing inhabitant without changing its stable id or feeding history.
+db.prepare("UPDATE guinea_pigs SET name = 'Huahua' WHERE id = 'potato' AND name = 'Potato'").run();

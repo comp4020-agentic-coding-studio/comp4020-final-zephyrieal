@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { feedPotato, walkTo, presence } from "./walk-helper.ts";
+import { feedHuahua, walkTo, presence } from "./walk-helper.ts";
 
 test("one public farm supports nearby planting and another visitor's harvest", async ({ browser }) => {
   test.setTimeout(90000);
@@ -20,7 +20,7 @@ test("one public farm supports nearby planting and another visitor's harvest", a
     await expect.poll(async () => (await b.request.get("/api/state").then(r => r.json())).farm.plots[0].crop).toBe("hay");
     await a.screenshot({ path: "/tmp/sanctuary-public-farm.png", fullPage: true });
     await a.getByRole("button", { name: "Close farm" }).click();
-    await feedPotato(a);
+    await feedHuahua(a);
     await walkTo(a, { x: 499.2, y: 112.64 }, 55);
     await a.getByRole("button", { name: "Build guinea-pig-house", exact: true }).click();
     await b.evaluate(async () => {
@@ -35,16 +35,16 @@ test("one public farm supports nearby planting and another visitor's harvest", a
     expect((await buildResponse).status()).toBe(200);
     await expect(b.locator("html")).toHaveAttribute("data-construction-dust", "guinea-pig-house");
     await a.getByRole("button", { name: "Go inside", exact: true }).click();
-    await expect(a.getByRole("dialog", { name: "Build Potato's house" })).toHaveCount(0);
+    await expect(a.getByRole("dialog", { name: "Build Huahua's house" })).toHaveCount(0);
     const id = (await presence(a)).selfId;
     const denied = await a.request.post("/api/feed", { headers: { "X-Player-Id": id }, data: { requestId: crypto.randomUUID() } });
     expect(denied.status()).toBe(403);
     await walkTo(b, { x: 276, y: 206 }, 60);
     await b.getByRole("button", { name: "Shared farm", exact: true }).click();
-    const harvest = b.getByRole("button", { name: "Harvest for Potato", exact: true });
+    const harvest = b.getByRole("button", { name: "Harvest for Huahua", exact: true });
     await expect(harvest).toBeVisible({ timeout: 35000 });
     await harvest.click();
-    await expect(b.getByRole("dialog", { name: "Shared farm options" })).toContainText("Plant food for Potato");
+    await expect(b.getByRole("dialog", { name: "Shared farm options" })).toContainText("Plant food for Huahua");
     await expect.poll(async () => (await a.request.get("/api/state").then(r => r.json())).farm.food.hay).toBe(3);
     expect(errors).toEqual([]);
   } finally { await ca.close(); await cb.close(); }

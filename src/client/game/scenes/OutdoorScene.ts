@@ -26,7 +26,7 @@ function stageKeyFor(
 export class OutdoorScene extends Phaser.Scene {
   private constructionSites = new Map<string, Phaser.GameObjects.Image>();
   // CLAUDE.md's Accessibility section asks to "respect reduced-motion
-  // preferences for animation that isn't load-bearing" --- Potato's own
+  // preferences for animation that isn't load-bearing" --- Huahua's own
   // position update is load-bearing (it's the server's authoritative
   // state), but the glide between two points is purely cosmetic, so this is
   // the one thing actually gated on it. Read once in create(): a live

@@ -94,7 +94,7 @@ export function useSanctuary() {
     }
   }
 
-  // Write-through only --- nothing in React ever renders Potato's position
+  // Write-through only --- nothing in React ever renders Huahua's position
   // (CLAUDE.md's Interface rule: communicate through behavior, not a stat
   // readout), so there's no matching useState here, unlike applyConstruction.
   // Phaser is the only reader, via sanctuaryState + this event.
@@ -172,7 +172,7 @@ export function useSanctuary() {
       body: JSON.stringify({ requestId: crypto.randomUUID(), crop, guineaPigId }),
     });
     const data = await res.json();
-    if (!res.ok) { flashRejection(data.reason ?? "Could not feed Potato."); return; }
+    if (!res.ok) { flashRejection(data.reason ?? "Could not feed Huahua."); return; }
     if (guineaPigId === "potato") setGuineaPig(data.guineaPig);
     setCarePoints(data.balance);
     } catch { flashRejection("Connection interrupted. Try feeding again."); }
