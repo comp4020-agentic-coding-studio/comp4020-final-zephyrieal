@@ -31,6 +31,7 @@ ENV NODE_ENV=production
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src/server ./src/server
+COPY src/shared ./src/shared
 COPY --from=build /app/public ./public
 COPY README.md ./README.md
 
