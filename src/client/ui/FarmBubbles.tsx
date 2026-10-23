@@ -50,7 +50,7 @@ export function FarmBubbles() {
       style={menuPosition(current.x, current.y - 45)} onPointerDown={e => e.stopPropagation()}>
       <button className="bubble-close" aria-label="Close farm" onClick={() => setSelected(null)}>×</button>
       {!plot.crop ? <><strong>Plant food for Potato</strong><div className="crop-choices">
-        {CROP_KEYS.map(crop => <button key={crop} disabled={busy} onClick={() => tend("plant", crop)}>{CROPS[crop].name}</button>)}
+        {CROP_KEYS.filter(crop => crop !== "carrot").map(crop => <button key={crop} disabled={busy} onClick={() => tend("plant", crop)}>{CROPS[crop].name}</button>)}
       </div></> : now >= plot.readyAt! ? <><strong>{CROPS[plot.crop].name} is ready!</strong>
         <button disabled={busy} onClick={() => tend("harvest")}>Harvest for Potato</button></>
         : <><strong>Growing {CROPS[plot.crop].name.toLowerCase()}</strong><p>Ready in {Math.ceil((plot.readyAt! - now) / 1000)}s</p></>}
@@ -79,6 +79,6 @@ export function FoodBubble({ action }: { action?: { x: number; y: number; pigId?
       disabled={crop !== "hay" && !food?.[crop]}
       onClick={() => { EventBus.emit("attempt-feed", crop, action.pigId); setOpen(false); }}>
       {CROPS[crop].name}{crop !== "hay" ? ` (${food?.[crop] ?? 0})` : ""}<small>+{CROPS[crop].carePoints} care points</small></button>)}</div>
-    <small>Hay is always available. Grow and harvest vegetables to offer more choices.</small>
+    <small>Hay is always available. Grow vegetables, or pull the giant carrot together.</small>
   </div>;
 }

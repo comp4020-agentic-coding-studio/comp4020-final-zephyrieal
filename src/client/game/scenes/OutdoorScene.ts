@@ -1,6 +1,7 @@
 import { configureCamera } from "../FollowCamera.ts";
 import { onSceneExit } from "../onSceneExit.ts";
 import { addGuineaPigs } from "../GuineaPigLayer.ts";
+import { addCarrot } from "../CarrotLayer.ts";
 import { addFarm } from "../FarmLayer.ts";
 import Phaser from "phaser";
 import { CONSTRUCTION_SITES, inReach, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../../../shared/interactions.ts";
@@ -55,6 +56,7 @@ export class OutdoorScene extends Phaser.Scene {
 
     this.lastDust.clear();
     addFarm(this);
+    addCarrot(this);
     for (const site of CONSTRUCTION_SITES) this.redrawConstructionSite(site.projectId);
     EventBus.on("construction-dust", this.onConstructionDust);
     EventBus.on("construction-updated", this.onConstructionUpdated);

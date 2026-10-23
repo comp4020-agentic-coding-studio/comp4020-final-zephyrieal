@@ -18,6 +18,7 @@ export interface GuineaPig {
 }
 
 interface StateResponse {
+  carrot: import("../../shared/carrot.ts").CarrotState;
   guineaPig: GuineaPig;
   guineaPigs: (GuineaPig & { id: string; movement: GuineaPigMovement })[];
   guineaPigMovement: GuineaPigMovement;
@@ -120,6 +121,8 @@ export function useSanctuary() {
     if (requestedRoom !== sanctuaryState.room) return;
     sanctuaryState.guineaPigs = Object.fromEntries(data.guineaPigs.map(p => [p.id, { ...p, receivedAt: Date.now() }]));
     EventBus.emit("guinea-pigs-loaded");
+    sanctuaryState.carrot = data.carrot;
+    sanctuaryState.carrotReceivedAt = Date.now();
     setGuineaPig(data.guineaPig);
     applyGuineaPigMovement(data.guineaPigMovement);
     setCarePoints(data.carePoints);
@@ -132,6 +135,15 @@ export function useSanctuary() {
   }
 
   let changingRoom = false;
+  async function pullCarrot(action: "join" | "leave", round: number) {
+    try {
+      const res = await fetch("/api/carrot", { method: "POST", headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId }, body: JSON.stringify({ action, round }) });
+      const data = await res.json();
+      if (data.carrot) { sanctuaryState.carrot = data.carrot; sanctuaryState.carrotReceivedAt = Date.now(); }
+      if (!res.ok) flashRejection(data.reason ?? "Could not pull the carrot.");
+    } catch { flashRejection("Could not reach the carrot. Try again."); }
+    finally { EventBus.emit("carrot-action-complete"); }
+  }
   async function changeRoom(room: Room) {
     if (changingRoom) return;
     changingRoom = true;
@@ -365,6 +377,8 @@ export function useSanctuary() {
 
     const onRoom = (room: Room) => void changeRoom(room);
     EventBus.on("attempt-room", onRoom);
+    const onCarrot = (action: "join" | "leave", round: number) => void pullCarrot(action, round);
+    EventBus.on("attempt-carrot", onCarrot);
     const onFeed = (crop?: Crop, guineaPigId?: string) => void feed(crop, guineaPigId);
     EventBus.on("attempt-feed", onFeed);
     EventBus.on("interaction-rejected", flashRejection);
@@ -416,6 +430,9 @@ export function useSanctuary() {
             multiplierUnits: msg.multiplierUnits,
             hadCooperativeMoment: msg.hadCooperativeMoment,
           });
+        } else if (msg.type === "carrot-updated") {
+          sanctuaryState.carrot = msg.carrot;
+          sanctuaryState.carrotReceivedAt = Date.now();
         } else if (msg.type === "guinea-pig-walking") {
           applyGuineaPigMovement({
             room: msg.room ?? "outdoor",
@@ -446,6 +463,7 @@ export function useSanctuary() {
 
     return () => {
       EventBus.off("attempt-room", onRoom);
+      EventBus.off("attempt-carrot", onCarrot);
       EventBus.off("attempt-feed", onFeed);
       EventBus.off("interaction-rejected", flashRejection);
       EventBus.off("attempt-farm", onFarm);

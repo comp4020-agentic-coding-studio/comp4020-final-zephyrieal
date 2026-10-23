@@ -1,3 +1,4 @@
+import type { CarrotState } from "../../shared/carrot.ts";
 import type { Room } from "../../shared/rooms.ts";
 import type { FarmState } from "../../shared/farm.ts";
 import type { FurnitureRow } from "../../server/furniture.ts";
@@ -10,6 +11,8 @@ import type { GuineaPigMovement } from "../../server/guinea-pig.ts";
 // useSanctuary.ts is the only writer; Scenes only read.
 export const sanctuaryState = {
   room: "outdoor" as Room,
+  carrot: null as CarrotState | null,
+  carrotReceivedAt: 0,
   guineaPigs: {} as Record<string, { id: string; name: string; feed_count: number; movement: GuineaPigMovement; receivedAt: number }>,
   farm: null as FarmState | null,
   farmReceivedAt: 0,

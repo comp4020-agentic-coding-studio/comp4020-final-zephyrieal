@@ -3,7 +3,9 @@ import type { FarmState } from "../../shared/farm.ts";
 import type { GuineaPig } from "../state/useSanctuary.ts";
 import type { PresenceIntent, PresenceMessage } from "../../shared/presence.ts";
 
+import type { CarrotState } from "../../shared/carrot.ts";
 export type RealtimeMessage =
+  | { type: "carrot-updated"; carrot: CarrotState }
   | PresenceMessage
   | { type: "construction-dust"; projectId: string }
   | { type: "farm-updated"; farm: FarmState }

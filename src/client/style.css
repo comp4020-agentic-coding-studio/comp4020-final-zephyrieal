@@ -282,3 +282,5 @@ button:disabled {
 
 .gesture-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .gesture-buttons button[aria-pressed="true"] { outline: 3px solid #5179a8; }
+
+.carrot-caption { line-height: 1.35; position: absolute; transform: translate(-50%, -100%); max-width: 210px; width: max-content; padding: 4px 7px; border-radius: 6px; background: #fff6df; color: #513b29; font-size: 11px; text-align: center; pointer-events: none; }

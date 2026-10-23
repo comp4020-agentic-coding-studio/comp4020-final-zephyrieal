@@ -1,3 +1,4 @@
+import { CarrotBubble } from "./CarrotBubble.tsx";
 import { worldPosition } from "../game/cameraState.ts";
 import { isBuilding } from "../../shared/rooms.ts";
 import { FarmBubbles, FoodBubble } from "./FarmBubbles.tsx";
@@ -63,6 +64,7 @@ export function WorldInteractions() {
   }, []);
   return <div className="world-interactions" aria-label="Nearby actions">
     <FarmBubbles />
+    <CarrotBubble />
     <FoodBubble action={nearby.find(action => action.pigId === selectedPig)} />
     {nearby.map(action => <button key={action.key} type="button"
       className="world-bubble" aria-label={action.pigId ? `Feed ${action.name}` : `${action.label.startsWith("Enter") ? "Enter" : "Build"} ${action.key}`}

@@ -74,3 +74,6 @@ Use **Wave**, **Sit** and **Help here** below the meadow. Nearby visitors in the
 
 ## Furniture the inhabitants use
 During indoor visits, guinea pigs sometimes approach a reachable hay bed to rest, a hideout to hide, or a tunnel to investigate. Their activity is shared live and labelled beside them. They leave again on their own; moving or storing the furniture interrupts its use safely. The furniture persists; these brief behaviours do not.
+
+## Pulling together
+The giant carrot in the meadow needs two different visitors. Walk close and choose **Pull together**; use **Help here** to invite someone. Stay nearby together for three seconds to add three carrot portions to the public food supply. Anyone can feed them to a guinea pig. Walking away, leaving the room or disconnecting ends participation; **Stop pulling** cancels it. Readiness expires after 15 seconds. Two tabs sharing one visitor cookie count as one visitor. The next carrot grows after 30 seconds. Harvests, food and the regrowth deadline survive restarts; waiting visitors and unfinished pulls do not.
