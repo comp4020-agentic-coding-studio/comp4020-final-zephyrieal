@@ -2,6 +2,7 @@ export const CROPS = {
   hay: { carePoints: 10, name: "Hay", growMs: 30000, color: 0xd8b65c },
   lettuce: { carePoints: 15, name: "Lettuce", growMs: 45000, color: 0x8dbb68 },
   pepper: { carePoints: 25, name: "Bell peppers", growMs: 60000, color: 0xd77b62 },
+  carrot: { carePoints: 15, name: "Carrots", growMs: 30000, color: 0xe98b38 },
   cucumber: { carePoints: 20, name: "Cucumbers", growMs: 45000, color: 0x619c65 },
 } as const;
 export type Crop = keyof typeof CROPS;

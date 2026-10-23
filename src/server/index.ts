@@ -1,5 +1,6 @@
 import { isBuilding, isRoom, type Room } from "../shared/rooms.ts";
 import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
+import { createCarrot } from "./carrot.ts";
 import { farmState, changeFarm } from "./farm.ts";
 import { CROPS, FARM_PLOTS, FARM_REACH, isCrop } from "../shared/farm.ts";
 import express, { type Request, type Response, type NextFunction } from "express";
@@ -40,6 +41,7 @@ const publicDir = join(repoRoot, "public");
 import { inReach, sitePosition, FEED_REACH, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../shared/interactions.ts";
 
 const app = express();
+const carrot = createCarrot(db, playerForVisitor);
 function requireNearby(req: Request, res: Response, x: number, y: number, reach: number, reason: string, room: Room = "outdoor"): boolean {
   const player = playerForVisitor(req.visitorId, req.get("X-Player-Id"));
   if (inReach(player, x, y, reach, room)) return true;
@@ -132,6 +134,7 @@ app.get("/api/state", (req: Request, res: Response) => {
     carePoints,
     construction,
     recentVisits,
+    carrot: carrot.state(),
   });
 });
 
@@ -416,6 +419,34 @@ for (const action of ["plant", "harvest"] as const) {
     res.json(result);
   });
 }
+
+app.post("/api/carrot", (req: Request, res: Response) => {
+  const { action, round } = req.body ?? {};
+  if ((action !== "join" && action !== "leave") || !Number.isSafeInteger(round)) {
+    res.status(400).json({ ok: false, reason: "Choose a valid carrot action." }); return;
+  }
+  const playerId = req.get("X-Player-Id") ?? "";
+  const result = carrot.act(req.visitorId, playerId, round, action);
+  if (!result.ok) { res.status(409).json(result); return; }
+  broadcast({ type: "carrot-updated", carrot: result.carrot });
+  logAction(req.visitorId, `carrot-${action}`, { round });
+  res.json(result);
+});
+let previousCarrot = "";
+const carrotTimer = setInterval(() => {
+  const result = carrot.tick();
+  const { serverNow, ...visible } = result.carrot;
+  const key = JSON.stringify({ ...visible, ready: serverNow >= visible.readyAt });
+  if (key !== previousCarrot) {
+    previousCarrot = key;
+    broadcast({ type: "carrot-updated", carrot: result.carrot });
+  }
+  if (result.harvested) {
+    broadcast({ type: "farm-updated", farm: farmState(db) });
+    logAction("sanctuary", "carrot-harvested", { harvests: result.carrot.harvests, portions: 3 });
+  }
+}, 100);
+carrotTimer.unref();
 
 // A "Build!" click. No client-sent progress value is ever accepted --- the
 // server alone decides how many units a click is worth, based on how many

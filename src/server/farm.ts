@@ -8,6 +8,7 @@ export function farmState(db: DatabaseSync, now = Date.now()): FarmState {
 }
 export function changeFarm(db: DatabaseSync, visitorId: string, action: "plant" | "harvest", plotId: number,
   crop: Crop | undefined, version: number, requestId: string, now = Date.now()) {
+  if (action === "plant" && crop === "carrot") return { ok: false as const, reason: "Pull the giant carrot with another visitor instead." };
   db.exec("BEGIN IMMEDIATE");
   try {
     const fingerprint = JSON.stringify({ action, plotId, crop, version });

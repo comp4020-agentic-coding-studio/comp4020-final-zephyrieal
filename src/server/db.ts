@@ -230,7 +230,7 @@ db.exec(`
   );
 `);
 for (let id = 0; id < 1; id++) db.prepare("INSERT OR IGNORE INTO farm_plots (id) VALUES (?)").run(id);
-for (const crop of ["hay", "lettuce", "pepper", "cucumber"]) db.prepare("INSERT OR IGNORE INTO farm_food (crop) VALUES (?)").run(crop);
+for (const crop of ["hay", "lettuce", "pepper", "cucumber", "carrot"]) db.prepare("INSERT OR IGNORE INTO farm_food (crop) VALUES (?)").run(crop);
 
 for (const pig of GUINEA_PIGS) {
   db.prepare("INSERT OR IGNORE INTO guinea_pigs (id, name, personality, feed_count, last_fed_at) VALUES (?, ?, ?, 0, NULL)").run(pig.id, pig.name, pig.personality);
