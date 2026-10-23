@@ -95,3 +95,7 @@ fitting on one small Fly machine.
 Don't make essential information depend solely on colour or solely on sound.
 Controls should be keyboard-operable where practical. Respect reduced-motion
 preferences for animation that isn't load-bearing.
+
+## Social gestures
+Wave and help gestures are temporary presence, not permanent contributions. Sitting ends on movement, room changes or disconnect. Validate gestures on the server and never accept a client-supplied target identity or duration. Keep gesture meaning readable without relying on animation, colour or sound.
+

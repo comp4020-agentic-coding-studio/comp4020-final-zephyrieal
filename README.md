@@ -68,3 +68,7 @@ Feeding rewards are chosen by the server: hay earns 10 Care Points, lettuce 15, 
 ## Entering completed buildings
 
 Walk up to a completed house, toolshed, greenhouse or great hall and choose Enter (or press E). Each has its own shared interior, visitors, furniture and storage. Leave to return beside the same building. The bridge remains outdoors. The original shared shelter and its existing furniture remain available through Go inside. Interiors currently share a floor plan; their contents and visitors are independent.
+
+## Acknowledging other visitors
+Use **Wave**, **Sit** and **Help here** below the meadow. Nearby visitors in the same room see a labelled gesture above your character. Wave and help last three seconds; sitting lasts until you stand, walk, change rooms or disconnect. Gestures are temporary presence and do not spend Care Points.
+

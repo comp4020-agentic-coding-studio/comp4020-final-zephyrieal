@@ -6,7 +6,7 @@ import type { Room } from "../../shared/presence.ts";
 
 // Recreated for each scene entry; every DOM/event listener is removed on shutdown.
 export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = () => false) {
-  const avatars = new Map<string, { root: Phaser.GameObjects.Container; body: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; targetX: number; targetY: number }>();
+  const avatars = new Map<string, { root: Phaser.GameObjects.Container; body: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; gesture: Phaser.GameObjects.Text; targetX: number; targetY: number }>();
   const keys = new Set<string>();
   let touch = { dx: 0, dy: 0 };
   let lastSent = -Infinity;
@@ -65,9 +65,13 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
           fontFamily: "monospace", fontSize: "10px", color: "#253a28", backgroundColor: "#fffaf0",
           padding: { x: 4, y: 2 },
         }).setOrigin(0.5, 1);
-        root.add([shadow, marker, body, label]);
+        const gesture = scene.add.text(0, -84, "", {
+          fontFamily: "sans-serif", fontSize: "12px", color: "#253a28", backgroundColor: "#fffaf0",
+          padding: { x: 5, y: 3 },
+        }).setOrigin(0.5, 1);
+        root.add([shadow, marker, body, label, gesture]);
         if (self) root.add(scene.add.ellipse(0, 2, 26, 12).setStrokeStyle(1, 0xffffff));
-        avatar = { root, body, label, targetX: player.x, targetY: player.y }; avatars.set(player.id, avatar);
+        avatar = { root, body, label, gesture, targetX: player.x, targetY: player.y }; avatars.set(player.id, avatar);
       }
       // Exponential interpolation avoids snapping between 20Hz server snapshots.
       const blend = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 100) / 45);
@@ -76,6 +80,11 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       const nearbyEarlier = visible.slice(0, visible.indexOf(player)).filter(other =>
         Math.abs(other.x - player.x) < 75 && Math.abs(other.y - player.y) < 20).length;
       avatar.label.y = -64 - nearbyEarlier * 16;
+      avatar.gesture.setText(player.gesture === "wave" ? "Waving hello" : player.gesture === "help" ? "Help here!" : player.gesture === "sit" ? "Sitting" : "");
+      avatar.gesture.setVisible(Boolean(player.gesture));
+      avatar.gesture.y = avatar.label.y - 20;
+      const height = player.gesture === "sit" ? 38 : 54;
+      avatar.body.setDisplaySize(avatar.body.frame.width / avatar.body.frame.height * height, height);
       // Direction follows authoritative motion; retain the last view at rest.
       // Real back/profile artwork replaces the old mirrored rectangular figure.
       const movedX = player.x - avatar.targetX;

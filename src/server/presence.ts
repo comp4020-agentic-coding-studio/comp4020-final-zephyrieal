@@ -7,7 +7,7 @@ import { INPUT_LEASE_MS, isMoveIntent, spawnIn, stepPlayer, type Player, type Ro
 export function createPresence() {
   const sessions = new Map<WebSocket, {
     player: Player; dx: number; dy: number; lastInput: number;
-    windowStart: number; messages: number;
+    windowStart: number; messages: number; gestureUntil?: number; lastGesture?: number;
   }>();
   const palette = [0x5179a8, 0xb76d78, 0x9071b0, 0xc48b42, 0x4d9184, 0xa16f4e];
   let nextColor = 0;
@@ -30,6 +30,8 @@ export function createPresence() {
     moveRoom(playerId: string, room: Room, position?: { x: number; y: number }) {
       const session = Array.from(sessions.values()).find(s => s.player.id === playerId);
       if (!session) return;
+      delete session.player.gesture;
+      session.gestureUntil = undefined;
       session.player.room = room;
       Object.assign(session.player, position ?? spawnIn(room));
       session.player.moving = false;
@@ -44,7 +46,27 @@ export function createPresence() {
         session.windowStart = now;
         session.messages = 0;
       }
-      if (++session.messages > 60 || !isMoveIntent(value)) return;
+      if (++session.messages > 60) return;
+      if (value && typeof value === "object" && "type" in value && value.type === "visitor-gesture") {
+        const gesture = "gesture" in value ? value.gesture : undefined;
+        if (gesture !== "wave" && gesture !== "sit" && gesture !== "help") return;
+        if (session.lastGesture !== undefined && now - session.lastGesture < 800) return;
+        session.lastGesture = now;
+        if (gesture === "sit" && session.player.gesture === "sit") {
+          delete session.player.gesture;
+          session.gestureUntil = undefined;
+        } else {
+          session.player.gesture = gesture;
+          session.gestureUntil = gesture === "sit" ? undefined : now + 3000;
+          if (gesture === "sit") { session.dx = 0; session.dy = 0; session.player.moving = false; }
+        }
+        dirty = true;
+        return;
+      }
+      if (!isMoveIntent(value)) return;
+      if (value.dx || value.dy || session.player.room !== value.room) {
+        if (session.player.gesture) { delete session.player.gesture; session.gestureUntil = undefined; dirty = true; }
+      }
       if (session.player.room !== value.room) {
         if (value.room.startsWith("house:") || session.player.room.startsWith("house:")) return;
         session.player.room = value.room;
@@ -60,6 +82,9 @@ export function createPresence() {
     tick(now: number, seconds: number) {
       for (const session of sessions.values()) {
         const { player } = session;
+        if (session.gestureUntil !== undefined && now >= session.gestureUntil) {
+          delete player.gesture; session.gestureUntil = undefined; dirty = true;
+        }
         const oldX = player.x, oldY = player.y, oldMoving = player.moving;
         const active = now - session.lastInput <= INPUT_LEASE_MS;
         stepPlayer(player, active ? session.dx : 0, active ? session.dy : 0, seconds);

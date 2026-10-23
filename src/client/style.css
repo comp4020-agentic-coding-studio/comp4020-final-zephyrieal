@@ -279,3 +279,6 @@ button:disabled {
   .interior-furnishing .shop-list { gap: 4px; }
   .interior-furnishing .shop-list button { padding: 6px; }
 }
+
+.gesture-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.gesture-buttons button[aria-pressed="true"] { outline: 3px solid #5179a8; }

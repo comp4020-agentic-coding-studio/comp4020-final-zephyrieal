@@ -1,7 +1,10 @@
 // Ephemeral visitor presence. Coordinates are in the game's logical pixel space.
 import { isRoom, type Room } from "./rooms.ts";
 export type { Room } from "./rooms.ts";
+export type Gesture = "wave" | "sit" | "help";
+export type PresenceIntent = MoveIntent | { type: "visitor-gesture"; gesture: Gesture };
 export interface Player {
+  gesture?: Gesture;
   id: string;
   room: Room;
   x: number;
