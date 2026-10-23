@@ -705,3 +705,81 @@ the multiplier engaged, both browser contexts staying in sync throughout.
 `pnpm check` still passes (39/39, typecheck clean) --- no existing test
 asserted the floored display, so nothing needed updating.
 
+
+## Controllable visitors and shared movement
+
+Added a separate human visitor avatar, controlled with WASD, arrow keys or the
+on-screen direction buttons. This implements the requested visible co-presence
+while leaving Potato autonomous. Existing click-to-plant, feeding, furniture and
+construction interactions remain available.
+
+The WebSocket now accepts ephemeral movement intents as well as sending world
+updates. Clients send a room and direction, never trusted positions, speed or
+elapsed time. The server advances movement at 20Hz, normalises diagonals, clamps
+to meadow/room boundaries, expires stale input after 350ms and limits input
+messages to 60 per second. Only changed presence snapshots are broadcast.
+A ping/pong heartbeat removes broken connections. Persistent mutations continue
+using the existing HTTP endpoints and SQLite transactions.
+
+There is one avatar per live browser tab, with a fresh public connection id
+that does not reveal the signed visitor cookie. This lets two tabs be controlled
+independently without duplicating personal Care Points identities. Presence is
+in-memory and disappears on departure; reconnecting returns to a spawn point
+in the currently viewed room. No accounts, database migration or dependencies
+were added. The initial HTTP state request establishes identity before opening
+the socket, including in Vite development mode.
+
+Both Phaser scenes use the same visitor layer. It interpolates server snapshots,
+animates walking, labels the local visitor, and removes avatars in other rooms.
+Input stops on lost focus, hidden tabs or scene shutdown. Reduced-motion mode
+omits interpolation and walking bob. On-screen buttons focus before sending
+movement so the canvas blur does not cancel the new input. Furniture selection
+pauses walking; re-entering the house clears any stale selection.
+
+Current scope: room boundaries are enforced; furniture, construction scenery,
+and other visitors do not block walking. Room changes use the existing buttons.
+Movement is server-authoritative with visual interpolation, without local
+prediction, so high-latency connections may feel less responsive. Presence is
+suited to the existing single-server, small-audience deployment.
+
+Verification coverage: spec/presence.test.ts checks speed, diagonal movement,
+invalid intents, stale input, boundaries, separate connections, and real socket
+join/move/room/leave broadcasts. browser/multiplayer.spec.ts exercises two
+independent browser contexts, keyboard and on-screen controls, repeated room
+changes, a real socket closure/reconnect and departure cleanup. Browser tests
+run serially because all of them share the same sanctuary. Verification uses
+temporary databases, leaving the project's existing world untouched.
+
+## Cute four-direction visitor artwork
+
+Replaced the rectangle-built visitor with a generated transparent gardener sprite
+sheet: fluffy chestnut hair, rosy cheeks, sage overalls and a peach neckerchief.
+The referenced ChatGPT conversation exposed its text but not its original images;
+the existing sanctuary sprites informed the cozy palette instead. The original
+PNG is checked into src/client/assets/sprites/visitor-gardener.png. Built-in image
+generation produced the artwork; no new image dependency is used at runtime.
+
+BootScene registers four atlas frames using the sheet's alpha bounds. PlayerLayer
+aligns their feet and renders each at 54px high, selecting front/back/left/right
+from the server's actual movement. At rest it retains the last view. Individual
+coloured ground markers and labels distinguish visitors without tinting their
+skin or artwork. Existing movement, interpolation, reduced-motion handling and
+multiplayer presence remain in place. The meadow's top bound includes enough
+space for the taller sprite and its label. The generation prompt is recorded in
+docs/visitor-art.md.
+
+### Minimal character revision from supplied references
+
+Replaced the active sprite sheet with visitor-minimal.png after the user supplied the intended visual references. The character now has a cream guinea-pig hat, simpler dark hair, short sage overalls, and a small backpack. Reduced shading and detail improve readability at game size. Updated the four atlas bounds; controls and presence behavior are unchanged. The original artwork and both generation prompts are retained.
+
+## Public garden and nearby actions
+
+Replaced experimental flower planting with one continuous public crop bed. All visitors may plant and harvest it; the crop picker offers hay, lettuce, bell peppers and cucumbers. Feeding, farming and construction now require a nearby authenticated avatar. Shared crops and pantry persist and broadcast; version checks and request IDs protect concurrent actions. Potato also uses a simpler cream-and-caramel sprite matching the visitor art.
+
+## Inhabitants, food rewards and scene cleanup
+
+Added Mochi, Biscuit and Clover with independent server-owned wandering and persistent feeding records. Food rewards are 10/15/20/25 for hay/lettuce/cucumber/pepper, selected server-side. Fixed construction updates reaching destroyed Phaser scenes: cleanup now runs on both shutdown and destruction. Previously a stale listener could throw before the active scene received the completed-building update. Early room switches are retained while assets load.
+
+## Island landscape
+
+Replaced the repeating grass backdrop with a reference-inspired pixel-art island: sandy paths, a waterfall, blossom trees, rock clusters, pots, bench and shoreline foliage. Existing world coordinates and live objects remain unchanged. Asset provenance and prompt are in docs/landscape-art.md.
