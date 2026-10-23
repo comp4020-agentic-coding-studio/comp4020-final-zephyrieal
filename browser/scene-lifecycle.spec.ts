@@ -38,35 +38,47 @@ test("the construction site survives going inside and back outside", async ({ pa
   expect(errors, "OutdoorScene.create() threw on the second round trip").toEqual([]);
 });
 
-test("one 'Plant a flower' click sends exactly one request, after repeated round trips", async ({
-  page,
-}) => {
-  // The bug's second half: "plant-random" was registered on the
-  // Scene-independent EventBus on every create() but never removed on
-  // SHUTDOWN, so it stacked up --- one visit to the house and back added a
-  // second listener, meaning one click fired two (then three, then four)
-  // identical plant requests.
-  const plantRequests: string[] = [];
-  page.on("request", (req) => {
-    if (req.method() === "POST" && req.url().includes("/api/plant")) {
-      plantRequests.push(req.url());
-    }
-  });
-
+test("the public farm remains a single bed after repeated room changes", async ({ page }) => {
   await page.goto("/");
-  await page.waitForSelector("canvas");
-  await page.waitForTimeout(1000);
-
+  await expect(page.locator("canvas")).toBeVisible();
   for (let i = 0; i < 3; i++) {
     await page.getByRole("button", { name: "Go inside" }).click();
-    await page.waitForTimeout(300);
+    await expect(page.getByRole("button", { name: "Shared farm", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Go back outside" }).click();
-    await page.waitForTimeout(300);
+    await expect(page.getByRole("button", { name: "Shared farm", exact: true })).toHaveCount(1);
   }
+  await expect(page.getByRole("button", { name: "Plant a flower" })).toHaveCount(0);
+});
 
-  plantRequests.length = 0;
-  await page.getByRole("button", { name: "Plant a flower" }).click();
-  await page.waitForTimeout(500);
 
-  expect(plantRequests.length).toBe(1);
+test("destroyed scenes release listeners and completed sites use their final texture", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const configPath = "/game/config.ts", busPath = "/game/eventBus.ts", statePath = "/game/sanctuaryState.ts";
+    const { startGame } = await import(configPath);
+    const { EventBus } = await import(busPath);
+    const { sanctuaryState } = await import(statePath);
+    // Instantiate through the scene's Phaser superclass, using a separate game
+    // from the same runtime as the app, to exercise direct game destruction.
+    const parent = document.createElement("div"); document.body.append(parent);
+    const game = startGame(parent);
+    await new Promise<void>((resolve, reject) => {
+      const deadline = Date.now() + 10000;
+      const check = () => {
+        if (game.scene.isActive("OutdoorScene")) resolve();
+        else if (Date.now() > deadline) reject(new Error("Scene did not start"));
+        else setTimeout(check, 30);
+      }; check();
+    });
+    sanctuaryState.construction["guinea-pig-house"] = { progressUnits: 10000, targetUnits: 10000, status: "completed", activeBuilders: 0, multiplierUnits: 100, hadCooperativeMoment: false };
+    EventBus.emit("construction-updated", "guinea-pig-house");
+    const scene = game.scene.getScene("OutdoorScene");
+    const texture = scene.children.getByName("construction:guinea-pig-house").texture.key;
+    await new Promise<void>(resolve => { game.events.once("destroy", resolve); game.destroy(true); });
+    // A stale callback used to throw here and prevent later listeners running.
+    EventBus.emit("construction-updated", "guinea-pig-house");
+    parent.remove();
+    return texture;
+  });
+  expect(result).toBe("guinea-pig-house-4");
 });

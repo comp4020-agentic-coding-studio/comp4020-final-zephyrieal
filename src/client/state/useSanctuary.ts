@@ -1,7 +1,11 @@
+import type { Room } from "../../shared/rooms.ts";
+import type { FarmState, Crop } from "../../shared/farm.ts";
 import { useEffect, useRef, useState } from "react";
 import { connectRealtime } from "../net/socket.ts";
+import { applyPresence, clearPresence, presenceState } from "../game/presenceState.ts";
+import type { MoveIntent } from "../../shared/presence.ts";
 import { EventBus } from "../game/eventBus.ts";
-import { sanctuaryState, type FlowerRow } from "../game/sanctuaryState.ts";
+import { sanctuaryState } from "../game/sanctuaryState.ts";
 import type { FurnitureRow } from "../../server/furniture.ts";
 import type { ConstructionSnapshot } from "../../server/construction.ts";
 import type { GuineaPigMovement } from "../../server/guinea-pig.ts";
@@ -15,8 +19,9 @@ export interface GuineaPig {
 
 interface StateResponse {
   guineaPig: GuineaPig;
+  guineaPigs: (GuineaPig & { id: string; movement: GuineaPigMovement })[];
   guineaPigMovement: GuineaPigMovement;
-  flowers: FlowerRow[];
+  farm: FarmState;
   furniture: FurnitureRow[];
   storedFurniture: FurnitureRow[];
   carePoints: number;
@@ -32,17 +37,17 @@ interface StateResponse {
 export function useSanctuary() {
   const [guineaPig, setGuineaPig] = useState<GuineaPig | null>(null);
   const [carePoints, setCarePoints] = useState(0);
-  const [flowers, setFlowers] = useState<FlowerRow[]>([]);
+
   const [furniture, setFurniture] = useState<FurnitureRow[]>([]);
   const [storedFurniture, setStoredFurniture] = useState<FurnitureRow[]>([]);
   const [construction, setConstruction] = useState<Record<string, ConstructionSnapshot>>({});
   const [rejection, setRejection] = useState<string | null>(null);
   const rejectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  function applyFlowers(next: FlowerRow[]) {
-    sanctuaryState.flowers = next;
-    setFlowers(next);
-    EventBus.emit("flowers-updated");
+  function applyFarm(farm: FarmState) {
+    sanctuaryState.farm = farm;
+    sanctuaryState.farmReceivedAt = Date.now();
+    EventBus.emit("farm-updated");
   }
 
   function applyFurniture(next: FurnitureRow[]) {
@@ -55,6 +60,7 @@ export function useSanctuary() {
   // (move/rotate) and retrieve success, plus the matching WS broadcasts, all
   // use to update what's on the floor.
   function applyFurnitureRow(row: FurnitureRow) {
+    if (row.room_id !== (sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room)) return;
     applyFurniture([...sanctuaryState.furniture.filter((f) => f.id !== row.id), row]);
   }
 
@@ -63,6 +69,7 @@ export function useSanctuary() {
   }
 
   function addStoredRow(row: FurnitureRow) {
+    if (row.room_id !== (sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room)) return;
     setStoredFurniture((prev) => [...prev.filter((f) => f.id !== row.id), row]);
   }
 
@@ -90,9 +97,14 @@ export function useSanctuary() {
   // (CLAUDE.md's Interface rule: communicate through behavior, not a stat
   // readout), so there's no matching useState here, unlike applyConstruction.
   // Phaser is the only reader, via sanctuaryState + this event.
-  function applyGuineaPigMovement(next: GuineaPigMovement) {
+  function applyGuineaPigMovement(next: GuineaPigMovement, id = "potato") {
+    const pig = sanctuaryState.guineaPigs[id];
+    if (pig) sanctuaryState.guineaPigs[id] = { ...pig, movement: next, receivedAt: Date.now() };
+    if (id === "potato") {
     sanctuaryState.guineaPigMovement = next;
-    EventBus.emit("guinea-pig-moved");
+    sanctuaryState.guineaPigReceivedAt = Date.now();
+    }
+    EventBus.emit("guinea-pig-moved", id);
   }
 
   function flashRejection(reason: string) {
@@ -102,12 +114,16 @@ export function useSanctuary() {
   }
 
   async function loadState() {
-    const res = await fetch("/api/state");
+    const requestedRoom = sanctuaryState.room;
+    const res = await fetch(`/api/state?room=${encodeURIComponent(requestedRoom)}`);
     const data = (await res.json()) as StateResponse;
+    if (requestedRoom !== sanctuaryState.room) return;
+    sanctuaryState.guineaPigs = Object.fromEntries(data.guineaPigs.map(p => [p.id, { ...p, receivedAt: Date.now() }]));
+    EventBus.emit("guinea-pigs-loaded");
     setGuineaPig(data.guineaPig);
     applyGuineaPigMovement(data.guineaPigMovement);
     setCarePoints(data.carePoints);
-    applyFlowers(data.flowers);
+    applyFarm(data.farm);
     applyFurniture(data.furniture);
     setStoredFurniture(data.storedFurniture);
     for (const [projectId, snapshot] of Object.entries(data.construction)) {
@@ -115,31 +131,59 @@ export function useSanctuary() {
     }
   }
 
-  async function feed() {
-    const res = await fetch("/api/feed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId: crypto.randomUUID() }),
-    });
-    const data = (await res.json()) as { guineaPig: GuineaPig; balance: number };
-    setGuineaPig(data.guineaPig);
-    setCarePoints(data.balance);
+  let changingRoom = false;
+  async function changeRoom(room: Room) {
+    if (changingRoom) return;
+    changingRoom = true;
+    try {
+      const response = await fetch("/api/room", { method: "POST", headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId }, body: JSON.stringify({ room }) });
+      const result = await response.json();
+      if (!response.ok) { flashRejection(result.reason); return; }
+      sanctuaryState.room = room;
+      applyFurniture([]); setStoredFurniture([]);
+      EventBus.emit("room-changed", room);
+      EventBus.emit("switch-scene", room);
+      EventBus.emit("close-construction-panel");
+      await loadState();
+    } catch { flashRejection("Could not change rooms. Please try again."); }
+    finally { changingRoom = false; }
   }
 
-  async function plant(x: number, y: number, requestId: string) {
-    const res = await fetch("/api/plant", {
+  let feeding = false;
+  async function feed(crop: Crop = "hay", guineaPigId = "potato") {
+    if (feeding) return;
+    feeding = true;
+    try {
+    const res = await fetch("/api/feed", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ x, y, requestId }),
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
+      body: JSON.stringify({ requestId: crypto.randomUUID(), crop, guineaPigId }),
     });
-    const data = (await res.json()) as { flowers: FlowerRow[] };
-    applyFlowers(data.flowers);
+    const data = await res.json();
+    if (!res.ok) { flashRejection(data.reason ?? "Could not feed Potato."); return; }
+    if (guineaPigId === "potato") setGuineaPig(data.guineaPig);
+    setCarePoints(data.balance);
+    } catch { flashRejection("Connection interrupted. Try feeding again."); }
+    finally { feeding = false; }
+  }
+
+  async function tendFarm(intent: { action: "plant" | "harvest"; plotId: number; crop?: Crop; version: number; requestId: string }) {
+    try {
+      const res = await fetch(`/api/farm/${intent.action}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
+        body: JSON.stringify(intent),
+      });
+      const data = await res.json();
+      if (data.farm) applyFarm(data.farm);
+      if (!res.ok) flashRejection(data.reason ?? "Could not tend this plot.");
+    } catch { flashRejection("Connection interrupted. Try tending the plot again."); }
+    finally { EventBus.emit("farm-action-complete"); }
   }
 
   async function buyFurniture(kind: string, tileX: number, tileY: number, requestId: string) {
     const res = await fetch("/api/furniture/place", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
       body: JSON.stringify({ kind, tileX, tileY, requestId }),
     });
     const data = await res.json();
@@ -167,7 +211,7 @@ export function useSanctuary() {
   ) {
     const res = await fetch("/api/furniture/edit", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
       body: JSON.stringify({ id, tileX, tileY, rotation, version, requestId }),
     });
     const data = await res.json();
@@ -188,7 +232,7 @@ export function useSanctuary() {
   async function storeFurniture(id: number, version: number, requestId: string) {
     const res = await fetch("/api/furniture/store", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
       body: JSON.stringify({ id, version, requestId }),
     });
     const data = await res.json();
@@ -216,7 +260,7 @@ export function useSanctuary() {
   ) {
     const res = await fetch("/api/furniture/retrieve", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
       body: JSON.stringify({ id, tileX, tileY, rotation, version, requestId }),
     });
     const data = await res.json();
@@ -240,7 +284,7 @@ export function useSanctuary() {
   async function contributeToConstruction(projectId: string, requestId: string) {
     const res = await fetch("/api/construction/contribute", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Player-Id": presenceState.selfId },
       body: JSON.stringify({ projectId, requestId }),
     });
     const data = await res.json();
@@ -261,8 +305,6 @@ export function useSanctuary() {
   }
 
   useEffect(() => {
-    const onAttemptPlant = ({ x, y, requestId }: { x: number; y: number; requestId: string }) =>
-      void plant(x, y, requestId);
     const onAttemptPlacement = ({
       kind,
       tileX,
@@ -321,7 +363,13 @@ export function useSanctuary() {
       requestId: string;
     }) => void contributeToConstruction(projectId, requestId);
 
-    EventBus.on("attempt-plant", onAttemptPlant);
+    const onRoom = (room: Room) => void changeRoom(room);
+    EventBus.on("attempt-room", onRoom);
+    const onFeed = (crop?: Crop, guineaPigId?: string) => void feed(crop, guineaPigId);
+    EventBus.on("attempt-feed", onFeed);
+    EventBus.on("interaction-rejected", flashRejection);
+    const onFarm = (intent: Parameters<typeof tendFarm>[0]) => void tendFarm(intent);
+    EventBus.on("attempt-farm", onFarm);
     EventBus.on("attempt-placement", onAttemptPlacement);
     EventBus.on("attempt-furniture-edit", onAttemptFurnitureEdit);
     EventBus.on("attempt-store-furniture", onAttemptStoreFurniture);
@@ -330,6 +378,17 @@ export function useSanctuary() {
 
     const realtime = connectRealtime(
       (msg) => {
+        if (msg.type === "presence-welcome" || msg.type === "presence-state") {
+          applyPresence(msg);
+          return;
+        }
+        if (msg.type === "farm-updated") { applyFarm(msg.farm); return; }
+        if (msg.type === "guinea-pig-fed") {
+          if (msg.guineaPigId === "potato") setGuineaPig(msg.guineaPig);
+          const pig = sanctuaryState.guineaPigs[msg.guineaPigId];
+          if (pig) Object.assign(pig, msg.guineaPig);
+          EventBus.emit("guinea-pig-fed", msg.guineaPigId); return;
+        }
         if (msg.type === "furniture-placed") {
           applyFurnitureRow(msg.furniture as FurnitureRow);
         } else if (msg.type === "furniture-moved" || msg.type === "furniture-rotated") {
@@ -346,6 +405,8 @@ export function useSanctuary() {
           setCarePoints(msg.balance);
         } else if (msg.type === "purchase-rejected") {
           flashRejection(msg.reason);
+        } else if (msg.type === "construction-dust") {
+          EventBus.emit("construction-dust", msg.projectId);
         } else if (msg.type === "construction-progress") {
           applyConstruction(msg.projectId, {
             progressUnits: msg.progressUnits,
@@ -363,26 +424,40 @@ export function useSanctuary() {
             targetY: msg.targetY,
             startedAt: msg.startedAt,
             durationMs: msg.durationMs,
-          });
+          }, msg.guineaPigId);
         }
       },
       // Re-hydrate on every open, including reconnects --- this is the whole
       // mechanism for "a reconnecting visitor gets the latest layout without
       // reloading" (scenario 6).
-      () => void loadState(),
+      () => {
+        if (sanctuaryState.room.startsWith("house:")) {
+          sanctuaryState.room = "outdoor";
+          EventBus.emit("room-changed", "outdoor"); EventBus.emit("switch-scene", "outdoor");
+        }
+        void loadState();
+      },
+      clearPresence,
     );
+    const onVisitorInput = (intent: MoveIntent) => realtime.send(intent);
+    EventBus.on("visitor-input", onVisitorInput);
 
     return () => {
-      EventBus.off("attempt-plant", onAttemptPlant);
+      EventBus.off("attempt-room", onRoom);
+      EventBus.off("attempt-feed", onFeed);
+      EventBus.off("interaction-rejected", flashRejection);
+      EventBus.off("attempt-farm", onFarm);
       EventBus.off("attempt-placement", onAttemptPlacement);
       EventBus.off("attempt-furniture-edit", onAttemptFurnitureEdit);
       EventBus.off("attempt-store-furniture", onAttemptStoreFurniture);
       EventBus.off("attempt-retrieve-furniture", onAttemptRetrieveFurniture);
       EventBus.off("attempt-construction-contribute", onAttemptConstructionContribute);
+      EventBus.off("visitor-input", onVisitorInput);
       realtime.close();
+      clearPresence();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { guineaPig, carePoints, flowers, furniture, storedFurniture, construction, rejection, feed };
+  return { guineaPig, carePoints, furniture, storedFurniture, construction, rejection, feed };
 }

@@ -1,0 +1,22 @@
+import { test, expect } from "@playwright/test";
+import { walkTo, presence } from "./walk-helper.ts";
+test("harvested cucumber awards its own reward once, ignoring a claimed reward", async ({ page }) => {
+  test.setTimeout(80000);
+  await page.goto("/");
+  await walkTo(page, {x:276,y:206}, 50);
+  await page.getByRole("button", {name:"Shared farm",exact:true}).click();
+  await page.getByRole("dialog", {name:"Shared farm options"}).getByRole("button",{name:"Cucumbers",exact:true}).click();
+  await page.getByRole("button", {name:"Harvest for Potato",exact:true}).waitFor({timeout:50000});
+  await page.getByRole("button", {name:"Harvest for Potato",exact:true}).click();
+  await page.getByRole("button", {name:"Close farm"}).click();
+  await walkTo(page, "mochi", 20);
+  const before = await page.request.get("/api/state").then(r=>r.json());
+  const id = (await presence(page)).selfId;
+  const requestId = crypto.randomUUID();
+  const data = {crop:"cucumber",guineaPigId:"mochi",requestId,carePoints:99999};
+  const feed = () => page.request.post("/api/feed",{headers:{"X-Player-Id":id},data});
+  const first = await feed(); expect(first.status()).toBe(200);
+  expect((await first.json()).balance).toBe(before.carePoints+20);
+  const replay = await feed(); expect(replay.status()).toBe(200);
+  expect((await replay.json()).balance).toBe(before.carePoints+20);
+});

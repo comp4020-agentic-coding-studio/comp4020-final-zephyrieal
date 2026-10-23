@@ -10,15 +10,11 @@ body {
   font-family: system-ui, sans-serif;
   color: var(--ink);
   background: #fdfaf4;
-  /* The visitor's "character" is the cursor itself, not an on-screen sprite
-     --- a pixel-art arrow (classic cursor silhouette, redrawn in the
-     sanctuary's palette) stands in for a player avatar. Hotspot (1,1) is
-     the arrow's tip. */
   cursor: url("./assets/sprites/cursor-arrow.png") 1 1, auto;
 }
 
 main {
-  max-width: 46rem; /* wide enough for the 640px-wide game canvas plus padding */
+  max-width: 84rem;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 }
@@ -47,7 +43,8 @@ main {
   border-radius: 0.75rem;
   overflow: hidden;
   border: 2px dashed #9ab98c;
-  display: inline-block;
+  display: block;
+  width: 100%;
   line-height: 0;
 }
 
@@ -57,6 +54,7 @@ main {
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   display: block;
+  width: 100%;
   max-width: 100%;
   height: auto;
 }
@@ -132,11 +130,21 @@ main {
 }
 
 .construction-panel {
-  margin-top: 1rem;
-  max-width: 320px;
-  background: #fff;
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: min(340px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  line-height: 1.35;
+  background: #fff6df;
+  border: 2px solid #8e6b47;
   border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 6px 20px #35291940;
 }
 
 .construction-panel-header {
@@ -214,4 +222,60 @@ button:disabled {
 
 .footer a {
   color: var(--accent);
+}
+
+.game-container { max-width: 100%; }
+.game-container:focus-visible { outline: 3px solid #5179a8; outline-offset: 3px; }
+.player-controls { margin-top: 0.75rem; }
+.presence-status { font-size: 0.9rem; margin: 0.4rem 0; }
+.walk-buttons { display: flex; gap: 0.4rem; }
+.walk-buttons button { touch-action: none; user-select: none; min-width: 44px; min-height: 44px; }
+
+.game-container { position: relative; }
+.world-interactions { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.world-bubble { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; white-space: nowrap; padding: 5px 9px; border: 2px solid #79583b; border-radius: 12px; background: #fff6df; color: #513b29; font-size: 12px; line-height: 1.2; box-shadow: 0 2px 0 #79583b33; }
+.world-bubble:hover, .world-bubble:focus-visible { background: #f1dfb5; outline: 2px solid #5a8f4e; }
+
+.farm-plot-target { position: absolute; transform: translate(-50%, -50%); width: 17%; height: 14.5%; pointer-events: auto; background: transparent; border-radius: 3px; padding: 0; }
+.farm-plot-target:hover, .farm-plot-target:focus-visible { background: #fff2c522; outline: 2px solid #f1d38d; }
+.farm-menu { position: absolute; transform: translate(-50%, -100%); z-index: 4; width: min(220px, 65%); padding: 12px; border: 2px solid #79583b; border-radius: 12px; background: #fff6df; color: #513b29; line-height: 1.35; pointer-events: auto; box-shadow: 0 3px 0 #79583b33; font-size: 12px; }
+.farm-menu strong { display: block; padding-right: 16px; margin-bottom: 8px; }
+.farm-menu small { display: block; margin-top: 7px; font-size: 10px; }
+.crop-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.farm-menu button { padding: 6px; font-size: 12px; background: #6d8e52; }
+.farm-menu .bubble-close { position: absolute; top: 3px; right: 5px; padding: 0 4px; background: none; color: #513b29; font-size: 18px; }
+
+/* Keep furnishing controls within the house viewport, below the floor. */
+.interior-furnishing {
+  position: absolute;
+  z-index: 5;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  max-height: 38%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px;
+  border: 2px solid #8e6b47;
+  border-radius: 12px;
+  background: #fff6df;
+  box-shadow: 0 3px 0 #79583b33;
+  line-height: 1.35;
+  font-size: 14px;
+}
+.interior-furnishing-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; }
+.interior-furnishing .shop-panel { margin-top: 6px; }
+.interior-furnishing .shop-hint { font-size: 12px; }
+.interior-furnishing .shop-list button { padding: 7px 10px; }
+.interior-storage { margin-top: 8px; }
+.interior-storage summary { cursor: pointer; }
+.interior-storage .storage-panel { margin-top: 6px; }
+@media (max-width: 600px) {
+  .interior-furnishing { bottom: 6px; padding: 6px 8px; max-width: calc(100% - 12px); font-size: 12px; }
+  .interior-furnishing .shop-hint { display: none; }
+  .interior-furnishing .shop-list { gap: 4px; }
+  .interior-furnishing .shop-list button { padding: 6px; }
 }

@@ -1,14 +1,7 @@
 import type { FurnitureRow } from "../../server/furniture.ts";
 import { EventBus } from "../game/eventBus.ts";
-import hayBedSprite from "../assets/sprites/furniture-hay_bed-front.png";
-import tunnelSprite from "../assets/sprites/furniture-tunnel-front.png";
-import hideoutSprite from "../assets/sprites/furniture-hideout-front.png";
-
-const THUMBNAILS: Record<string, string> = {
-  hay_bed: hayBedSprite,
-  tunnel: tunnelSprite,
-  hideout: hideoutSprite,
-};
+import furnitureSheet from "../assets/sprites/furniture-cozy.png";
+const ROWS: Record<string, string> = { hay_bed: "0%", tunnel: "50%", hideout: "100%" };
 
 const LABELS: Record<string, string> = {
   hay_bed: "Hay bed",
@@ -29,7 +22,7 @@ export function StoragePanel({ items }: { items: FurnitureRow[] }) {
       <ul className="storage-list">
         {items.map((item) => (
           <li key={item.id} className="storage-item">
-            <img src={THUMBNAILS[item.kind]} alt="" width={32} height={32} />
+            <span aria-hidden="true" style={{ width: 40, height: 40, flexShrink: 0, backgroundImage: `url(${furnitureSheet})`, backgroundSize: "300% 300%", backgroundPosition: `0% ${ROWS[item.kind]}` }} />
             <span>
               {LABELS[item.kind] ?? item.kind} ({item.width}×{item.height})
             </span>

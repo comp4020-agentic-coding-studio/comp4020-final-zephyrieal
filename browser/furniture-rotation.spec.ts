@@ -1,3 +1,4 @@
+import { feedPotato } from "./walk-helper.ts";
 import { test, expect } from "@playwright/test";
 import { inflateSync } from "node:zlib";
 import { HOUSE_ORIGIN_X, HOUSE_ORIGIN_Y, GAME_WIDTH, GAME_HEIGHT } from "../src/client/game/layout.ts";
@@ -148,7 +149,7 @@ test("rotating a placed hideout swaps in a genuinely different sprite per side",
 
   // Hideout costs 40; one feed earns 10.
   for (let i = 0; i < 4; i++) {
-    await page.getByRole("button", { name: "Feed Potato" }).click();
+    await feedPotato(page);
     await page.waitForTimeout(150);
   }
 
@@ -161,12 +162,16 @@ test("rotating a placed hideout swaps in a genuinely different sprite per side",
   const box = await canvas.boundingBox();
   if (!box) throw new Error("canvas not found");
 
+  const camera = await page.evaluate(async () => { const path = "/game/cameraState.ts"; return (await import(path)).cameraState; });
+  const sx = box.width / camera.width * camera.zoom, sy = box.height / camera.height * camera.zoom;
+  const screenX = (x: number) => box.x + (x-camera.x)*sx;
+  const screenY = (y: number) => box.y + (y-camera.y)*sy;
   const { width, height } = footprintFor(KIND, 0);
   const center = pieceCenter(TILE_X, TILE_Y, width, height);
 
   const anchor = anyPointInTopLeftTile(TILE_X, TILE_Y);
-  const clickX = box.x + anchor.x;
-  const clickY = box.y + anchor.y;
+  const clickX = screenX(anchor.x);
+  const clickY = screenY(anchor.y);
   await page.mouse.move(clickX, clickY);
   await page.waitForTimeout(100);
   await page.mouse.click(clickX, clickY);
@@ -179,27 +184,27 @@ test("rotating a placed hideout swaps in a genuinely different sprite per side",
     );
   }
 
-  const pieceX = box.x + center.x;
-  const pieceY = box.y + center.y;
+  const pieceX = screenX(center.x);
+  const pieceY = screenY(center.y);
   const clip = {
-    x: pieceX - (width * TILE_SIZE) / 2,
-    y: pieceY - (height * TILE_SIZE) / 2,
-    width: width * TILE_SIZE,
-    height: height * TILE_SIZE,
+    x: pieceX - (width * TILE_SIZE * sx) / 2,
+    y: pieceY - (height * TILE_SIZE * sy) / 2,
+    width: width * TILE_SIZE * sx,
+    height: height * TILE_SIZE * sy,
   };
 
   const front = await page.screenshot({ clip }); // 0deg
 
   const rotate = rotateIconCenter(center.x, center.y, width, height);
   const iconStep = 16 + 2;
-  const saveX = box.x + rotate.x + 2 * iconStep; // Save is the 3rd of 5 icons (rotate, move, save, ...)
-  const saveY = box.y + rotate.y;
+  const saveX = screenX(rotate.x + 2 * iconStep); // Save is the 3rd of 5 icons (rotate, move, save, ...)
+  const saveY = screenY(rotate.y);
 
   // Rotate twice and save each time: 0 -> 90 (right) -> 180 (back).
   for (let i = 0; i < 2; i++) {
     await page.mouse.click(pieceX, pieceY); // open the edit menu
     await page.waitForTimeout(300);
-    await page.mouse.click(box.x + rotate.x, box.y + rotate.y); // Rotate
+    await page.mouse.click(screenX(rotate.x), screenY(rotate.y)); // Rotate
     await page.waitForTimeout(250);
     await page.mouse.click(saveX, saveY); // Save
     await page.waitForTimeout(400);

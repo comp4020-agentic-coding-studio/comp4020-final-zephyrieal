@@ -10,6 +10,8 @@ import { defineConfig } from "@playwright/test";
 // relying on a cross-scene UI change at a crit.
 export default defineConfig({
   testDir: "./browser",
+  // Each browser test observes the same sanctuary; keep unrelated visitors out.
+  workers: 1,
   timeout: 30_000,
   webServer: {
     command: "pnpm dev",

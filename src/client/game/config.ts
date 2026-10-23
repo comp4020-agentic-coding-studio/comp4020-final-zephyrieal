@@ -8,10 +8,12 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
   return {
     type: Phaser.AUTO,
     parent,
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
+    width: 960,
+    height: 640,
     pixelArt: true, // nearest-neighbour rendering, no blur on scaled sprites
     backgroundColor: "#dcebd4",
     scene: [BootScene, OutdoorScene, IndoorScene],
   };
 }
+
+export function startGame(parent: HTMLElement) { return new Phaser.Game(createGameConfig(parent)); }

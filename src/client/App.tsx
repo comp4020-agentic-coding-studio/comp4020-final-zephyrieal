@@ -1,5 +1,7 @@
+import { roomName, type Room } from "../shared/rooms.ts";
 import { useEffect, useState } from "react";
 import { PhaserGame } from "./game/PhaserGame.tsx";
+import { PlayerControls } from "./ui/PlayerControls.tsx";
 import { EventBus } from "./game/eventBus.ts";
 import { CarePointsBadge } from "./ui/CarePointsBadge.tsx";
 import { ShopPanel } from "./ui/ShopPanel.tsx";
@@ -20,10 +22,9 @@ function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
 }
 
 export default function App() {
-  const { guineaPig, carePoints, flowers, storedFurniture, construction, rejection, feed } =
+  const { guineaPig, carePoints, storedFurniture, construction, rejection } =
     useSanctuary();
-  const [view, setView] = useState<"outdoor" | "indoor">("outdoor");
-  const [feeding, setFeeding] = useState(false);
+  const [view, setView] = useState<Room>("outdoor");
   const [openConstructionProjectId, setOpenConstructionProjectId] = useState<string | null>(null);
 
   // A construction site is a Phaser sprite living in OutdoorScene; this is
@@ -33,17 +34,22 @@ export default function App() {
   // clicked. Only one panel is ever open at a time: clicking a different
   // site while one is open swaps which project's panel shows.
   useEffect(() => {
+    const onRoom = (room: Room) => setView(room);
+    EventBus.on("room-changed", onRoom);
     const onOpen = (projectId: string) => setOpenConstructionProjectId(projectId);
+    const onClose = () => setOpenConstructionProjectId(null);
+    EventBus.on("close-construction-panel", onClose);
     EventBus.on("open-construction-panel", onOpen);
     return () => {
+      EventBus.off("room-changed", onRoom);
+      EventBus.off("close-construction-panel", onClose);
       EventBus.off("open-construction-panel", onOpen);
     };
   }, []);
 
   function toggleView() {
     const next = view === "outdoor" ? "indoor" : "outdoor";
-    setView(next);
-    EventBus.emit("switch-scene", next);
+    EventBus.emit("attempt-room", next);
   }
 
   return (
@@ -51,7 +57,7 @@ export default function App() {
       <h1>Guinea Pig Sanctuary</h1>
       <p className="intro">
         A small, shared meadow and the house just behind it. Right now there's
-        one guinea pig here — <strong>Potato</strong> — and whatever you leave
+        four guinea pigs here — <strong>Potato, Mochi, Biscuit and Clover</strong> — and whatever you leave
         behind, outside or in, stays for the next visitor.
       </p>
 
@@ -63,32 +69,15 @@ export default function App() {
         <p aria-live="polite">{traceText(guineaPig)}</p>
 
         <div className="toolbar">
-          <button
-            type="button"
-            disabled={feeding}
-            onClick={async () => {
-              setFeeding(true);
-              try {
-                await feed();
-              } finally {
-                setFeeding(false);
-              }
-            }}
-          >
-            Feed Potato
-          </button>
           <CarePointsBadge value={carePoints} />
           <button type="button" onClick={toggleView}>
             {view === "outdoor" ? "Go inside" : "Go back outside"}
           </button>
-          {view === "outdoor" && (
-            <button type="button" onClick={() => EventBus.emit("plant-random")}>
-              Plant a flower
-            </button>
-          )}
+
         </div>
 
-        <PhaserGame />
+        {view !== "outdoor" && <p className="room-name">{roomName(view)} · shared interior</p>}
+        <PhaserGame>
 
         {openConstructionProjectId && (
           <ConstructionPanel
@@ -99,20 +88,31 @@ export default function App() {
           />
         )}
 
-        {view === "indoor" && (
-          <>
+        {view !== "outdoor" && (
+          <section className="interior-furnishing" aria-label="Furnish this house"
+            onPointerDown={(event) => event.stopPropagation()}>
+            <div className="interior-furnishing-header">
+              <strong>Furnish this house</strong>
+              <CarePointsBadge value={carePoints} />
+            </div>
             <ShopPanel carePoints={carePoints} />
-            <StoragePanel items={storedFurniture} />
-          </>
+            {storedFurniture.length > 0 && (
+              <details className="interior-storage">
+                <summary>Shared storage ({storedFurniture.length})</summary>
+                <StoragePanel items={storedFurniture} />
+              </details>
+            )}
+          </section>
         )}
+        </PhaserGame>
+        <PlayerControls />
+
+
 
         {rejection && <p className="rejection" role="alert">{rejection}</p>}
 
-        <p aria-live="polite">
-          {flowers.length === 0
-            ? "No one has planted anything here yet. Click the meadow to plant a flower."
-            : `${flowers.length} flower${flowers.length === 1 ? "" : "s"} planted by visitors so far.`}
-        </p>
+        <p className="shop-hint">The shared garden grows food for Potato. Walk up to the public garden and choose what to plant. Anyone can plant or harvest.</p>
+
       </section>
 
       <p className="footer">

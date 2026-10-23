@@ -1,4 +1,8 @@
+import { configureCamera } from "../FollowCamera.ts";
+import { roomName } from "../../../shared/rooms.ts";
+import { onSceneExit } from "../onSceneExit.ts";
 import Phaser from "phaser";
+import { addPlayers } from "../PlayerLayer.ts";
 import { EventBus } from "../eventBus.ts";
 import { sanctuaryState } from "../sanctuaryState.ts";
 import {
@@ -46,6 +50,7 @@ const ROTATIONS: Rotation[] = [0, 90, 180, 270];
 export class IndoorScene extends Phaser.Scene {
   private furnitureSprites: Phaser.GameObjects.Image[] = [];
   private preview?: Phaser.GameObjects.Image;
+  private previewFootprint?: Phaser.GameObjects.Rectangle;
   private message?: Phaser.GameObjects.Text;
   private activeOp?: ActiveOp;
   private previewTile = { x: 0, y: 0 };
@@ -79,7 +84,11 @@ export class IndoorScene extends Phaser.Scene {
   }
 
   create() {
+    configureCamera(this, false);
+    this.activeOp = undefined;
+    addPlayers(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room, () => Boolean(this.activeOp));
     this.drawFloorAndWalls();
+    this.add.text(320, 100, roomName(sanctuaryState.room), { fontFamily: "monospace", fontSize: "16px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 10, y: 6 } }).setOrigin(0.5);
     this.redrawFurniture();
 
     EventBus.on("furniture-updated", this.onFurnitureUpdated);
@@ -89,7 +98,7 @@ export class IndoorScene extends Phaser.Scene {
     EventBus.on("furniture-edit-result", this.onFurnitureEditResult);
     EventBus.on("store-result", this.onStoreResult);
     EventBus.on("retrieve-result", this.onRetrieveResult);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    onSceneExit(this, () => {
       EventBus.off("furniture-updated", this.onFurnitureUpdated);
       EventBus.off("select-furniture", this.onSelectFurniture);
       EventBus.off("select-stored-furniture", this.onSelectStoredFurniture);
@@ -101,8 +110,8 @@ export class IndoorScene extends Phaser.Scene {
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       const tile = {
-        x: Math.floor((pointer.x - HOUSE_ORIGIN_X) / TILE_SIZE),
-        y: Math.floor((pointer.y - HOUSE_ORIGIN_Y) / TILE_SIZE),
+        x: Math.floor((pointer.worldX - HOUSE_ORIGIN_X) / TILE_SIZE),
+        y: Math.floor((pointer.worldY - HOUSE_ORIGIN_Y) / TILE_SIZE),
       };
       if (this.activeOp?.mode === "edit") {
         // The menu is rebuilt (destroyed + recreated) on almost every click,
@@ -125,7 +134,14 @@ export class IndoorScene extends Phaser.Scene {
       this.updatePreview();
     });
 
-    this.input.on("pointerdown", () => {
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      // A tap can arrive without a pointermove (especially on touch screens).
+      if (this.activeOp && this.activeOp.mode !== "edit") {
+        const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        this.previewTile = { x: Math.floor((world.x - HOUSE_ORIGIN_X) / TILE_SIZE),
+          y: Math.floor((world.y - HOUSE_ORIGIN_Y) / TILE_SIZE) };
+        this.updatePreview();
+      }
       if (this.suppressNextSceneClick) {
         this.suppressNextSceneClick = false;
         return;
@@ -219,6 +235,7 @@ export class IndoorScene extends Phaser.Scene {
     excludeId?: number,
   ) {
     this.preview?.destroy();
+    this.previewFootprint?.destroy();
     const check = isValidPlacement(kind, tile.x, tile.y, this.currentFootprint(excludeId), rotation);
     const { width, height } = footprintFor(kind, rotation);
     const view = viewFor(kind, rotation);
@@ -226,16 +243,22 @@ export class IndoorScene extends Phaser.Scene {
       .image(
         HOUSE_ORIGIN_X + tile.x * TILE_SIZE + (width * TILE_SIZE) / 2,
         HOUSE_ORIGIN_Y + tile.y * TILE_SIZE + (height * TILE_SIZE) / 2,
-        view.key,
+        view.key, "furniture",
       )
       .setFlipX(view.flipX)
       .setAlpha(0.6)
       .setTint(check.ok ? 0x88ff88 : 0xff8888);
+    this.fitFurniture(this.preview, width, height);
+    this.previewFootprint = this.add.rectangle(this.preview.x, this.preview.y,
+      width * TILE_SIZE, height * TILE_SIZE, check.ok ? 0x88bb77 : 0xcc6666, 0.12)
+      .setStrokeStyle(1, check.ok ? 0x527a45 : 0xaa4444);
+
   }
 
   private updatePreview() {
     if (!this.activeOp || this.activeOp.mode === "edit") {
       this.preview?.destroy();
+    this.previewFootprint?.destroy();
       this.preview = undefined;
       return;
     }
@@ -275,6 +298,7 @@ export class IndoorScene extends Phaser.Scene {
     if (result.ok) {
       this.activeOp = undefined;
       this.preview?.destroy();
+    this.previewFootprint?.destroy();
       this.preview = undefined;
     }
   }
@@ -308,6 +332,13 @@ export class IndoorScene extends Phaser.Scene {
     this.time.delayedCall(2500, () => this.message?.destroy());
   }
 
+  private fitFurniture(sprite: Phaser.GameObjects.Image, width: number, height: number) {
+    // Preserve the artwork's proportions while keeping every visible pixel
+    // inside the same server-validated tile footprint used by the preview.
+    sprite.setScale(Math.min((width * TILE_SIZE - 4) / sprite.width,
+      (height * TILE_SIZE - 4) / sprite.height));
+  }
+
   private redrawFurniture() {
     for (const sprite of this.furnitureSprites) sprite.destroy();
     this.furnitureSprites = sanctuaryState.furniture.map((row: FurnitureRow) => {
@@ -316,10 +347,12 @@ export class IndoorScene extends Phaser.Scene {
         .image(
           HOUSE_ORIGIN_X + row.tile_x * TILE_SIZE + (row.width * TILE_SIZE) / 2,
           HOUSE_ORIGIN_Y + row.tile_y * TILE_SIZE + (row.height * TILE_SIZE) / 2,
-          view.key,
+          view.key, "furniture",
         )
         .setFlipX(view.flipX)
-        .setInteractive();
+        .setName(`furniture:${row.id}`)
+        .setInteractive({ pixelPerfect: true, alphaTolerance: 32, useHandCursor: true });
+      this.fitFurniture(sprite, row.width, row.height);
       sprite.on("pointerdown", () => {
         this.suppressNextSceneClick = true;
         this.openEditMenu(row);
@@ -335,6 +368,7 @@ export class IndoorScene extends Phaser.Scene {
 
   private openEditMenu(row: FurnitureRow) {
     this.preview?.destroy();
+    this.previewFootprint?.destroy();
     this.preview = undefined;
     this.activeOp = {
       mode: "edit",
@@ -363,13 +397,14 @@ export class IndoorScene extends Phaser.Scene {
     this.selectionOutline?.destroy();
     this.selectionOutline = undefined;
     this.preview?.destroy();
+    this.previewFootprint?.destroy();
     this.preview = undefined;
     if (this.activeOp?.mode === "edit") this.activeOp = undefined;
   }
 
   private isPointerOverMenu(pointer: Phaser.Input.Pointer): boolean {
     if (!this.menuPanel) return false;
-    return Phaser.Geom.Rectangle.Contains(this.menuPanel.getBounds(), pointer.x, pointer.y);
+    return Phaser.Geom.Rectangle.Contains(this.menuPanel.getBounds(), pointer.worldX, pointer.worldY);
   }
 
   private renderEditGhost() {

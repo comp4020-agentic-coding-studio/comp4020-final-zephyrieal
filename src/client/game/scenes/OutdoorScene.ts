@@ -1,28 +1,15 @@
+import { configureCamera } from "../FollowCamera.ts";
+import { onSceneExit } from "../onSceneExit.ts";
+import { addGuineaPigs } from "../GuineaPigLayer.ts";
+import { addFarm } from "../FarmLayer.ts";
 import Phaser from "phaser";
+import { CONSTRUCTION_SITES, inReach, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../../../shared/interactions.ts";
+import { presenceState } from "../presenceState.ts";
+import { addPlayers } from "../PlayerLayer.ts";
 import { EventBus } from "../eventBus.ts";
-import { sanctuaryState, type FlowerRow } from "../sanctuaryState.ts";
+import { sanctuaryState } from "../sanctuaryState.ts";
 
-// Free placement, 0-100 percent-of-box coordinates --- the exact space
-// src/server/index.ts's /api/plant already clamps into, and what the old
-// public/app.js's pointer-to-coordinate math already produced
-// (((event.clientX - rect.left) / rect.width) * 100). This scene keeps that
-// space; it is NOT unified with IndoorScene's integer tile grid.
-//
-// The construction sites (added alongside the cooperative minigame, see
-// docs/decisions/0003-construction-concurrency.md and
-// docs/decisions/0004-multiple-construction-projects.md) live at fixed
-// spots in this same percent-space and are the first *interactive* objects
-// this scene has ever had --- everything else here is either fixed scenery
-// or driven by the scene-wide "click anywhere plants a flower" handler
-// below. Positions are picked to avoid the guinea pig (50/50) and each
-// other; adjust by eye if a sprite's footprint turns out to overlap.
-const CONSTRUCTION_SITES: { projectId: string; xPercent: number; yPercent: number }[] = [
-  { projectId: "guinea-pig-house", xPercent: 78, yPercent: 22 },
-  { projectId: "toolshed", xPercent: 15, yPercent: 20 },
-  { projectId: "greenhouse", xPercent: 15, yPercent: 70 },
-  { projectId: "bridge", xPercent: 78, yPercent: 70 },
-  { projectId: "great-hall", xPercent: 50, yPercent: 85 },
-];
+// Outdoor objects share meadow coordinates; interactions require nearby players.
 
 function stageKeyFor(
   projectId: string,
@@ -36,9 +23,7 @@ function stageKeyFor(
 }
 
 export class OutdoorScene extends Phaser.Scene {
-  private flowerSprites: Phaser.GameObjects.Image[] = [];
   private constructionSites = new Map<string, Phaser.GameObjects.Image>();
-  private guineaPigSprite?: Phaser.GameObjects.Image;
   // CLAUDE.md's Accessibility section asks to "respect reduced-motion
   // preferences for animation that isn't load-bearing" --- Potato's own
   // position update is load-bearing (it's the server's authoritative
@@ -48,128 +33,38 @@ export class OutdoorScene extends Phaser.Scene {
   // which isn't worth the complexity for a setting visitors set once in
   // their OS/browser, not mid-visit.
   private reducedMotion = false;
-  // Set by a construction site's own pointerdown just before it opens the
-  // panel, so the scene-wide pointerdown (which would otherwise try to
-  // plant a flower at that same click) ignores it once and clears the flag
-  // --- the same one-shot pattern IndoorScene already uses for its
-  // furniture menu.
-  private suppressNextSceneClick = false;
-  private onFlowersUpdated = () => this.redrawFlowers();
   private onConstructionUpdated = (projectId: string) => this.redrawConstructionSite(projectId);
+  private lastDust = new Map<string, number>();
+  private onConstructionDust = (projectId: string) => this.playConstructionDust(projectId);
   private onConstructionCelebrate = (projectId: string) => this.playCompletionEffect(projectId);
-  private onGuineaPigMoved = () => this.animateGuineaPigToTarget();
-  private onPlantRandom = () => this.attemptPlant(20 + Math.random() * 60, 20 + Math.random() * 60);
+
 
   constructor() {
     super("OutdoorScene");
   }
 
   create() {
-    const { width, height } = this.scale;
-    this.add.tileSprite(width / 2, height / 2, width, height, "grass-tile");
-    this.add
-      .rectangle(width / 2, height / 2, width - 4, height - 4)
-      .setStrokeStyle(2, 0x9ab98c);
+    addPlayers(this, "outdoor");
+    const width = MEADOW_WIDTH, height = MEADOW_HEIGHT;
+    configureCamera(this, true);
+    this.add.image(width / 2, height / 2, "sanctuary-island").setDisplaySize(width, height).setDepth(-10);
 
     this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-    // Potato wanders the meadow on her own (CLAUDE.md: "the guinea pig
-    // decides what it does" --- never direct player control) --- the server
-    // decides where and when (src/server/guinea-pig.ts), this scene only
-    // ever renders wherever sanctuaryState.guineaPigMovement already says
-    // she is, same as every other piece of shared state here. Starting from
-    // whatever's already known (not a hardcoded 50/50) means a visitor who
-    // switches back from IndoorScene sees her already correctly placed,
-    // mid-walk or paused, not snapped back to a default spot.
-    const start = sanctuaryState.guineaPigMovement ?? { x: 50, y: 50, targetX: 50, targetY: 50, startedAt: Date.now(), durationMs: 0 };
-    this.guineaPigSprite = this.add.image(
-      (width * start.x) / 100,
-      (height * start.y) / 100,
-      "guinea-pig",
-    );
-    this.animateGuineaPigToTarget();
+    addGuineaPigs(this);
 
-    this.redrawFlowers();
+    this.lastDust.clear();
+    addFarm(this);
     for (const site of CONSTRUCTION_SITES) this.redrawConstructionSite(site.projectId);
-    EventBus.on("flowers-updated", this.onFlowersUpdated);
+    EventBus.on("construction-dust", this.onConstructionDust);
     EventBus.on("construction-updated", this.onConstructionUpdated);
     EventBus.on("construction-celebrate", this.onConstructionCelebrate);
-    EventBus.on("guinea-pig-moved", this.onGuineaPigMoved);
-    EventBus.on("plant-random", this.onPlantRandom);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      EventBus.off("flowers-updated", this.onFlowersUpdated);
+    onSceneExit(this, () => {
+      EventBus.off("construction-dust", this.onConstructionDust);
       EventBus.off("construction-updated", this.onConstructionUpdated);
       EventBus.off("construction-celebrate", this.onConstructionCelebrate);
-      EventBus.off("guinea-pig-moved", this.onGuineaPigMoved);
-      EventBus.off("plant-random", this.onPlantRandom);
     });
 
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (this.suppressNextSceneClick) {
-        this.suppressNextSceneClick = false;
-        return;
-      }
-      const x = (pointer.x / this.scale.width) * 100;
-      const y = (pointer.y / this.scale.height) * 100;
-      this.attemptPlant(x, y);
-    });
-    // "plant-random" itself is registered above with the other EventBus
-    // listeners this Scene cleans up on SHUTDOWN --- it's the plain,
-    // always-available keyboard route to the same intent (CLAUDE.md:
-    // "controls should be keyboard-operable where practical"), mirroring the
-    // old meadow div's Enter/Space handler, which planted at a random point
-    // since there's no cursor position to read from a key press.
-  }
-
-  private attemptPlant(x: number, y: number) {
-    EventBus.emit("attempt-plant", { x, y, requestId: crypto.randomUUID() });
-  }
-
-  // Walks the sprite from wherever it currently is to the server's latest
-  // target, over whatever time is left in that walk --- not the walk's full
-  // original duration, since this fires again mid-walk every time a fresh
-  // "guinea-pig-moved" broadcast arrives (every ~1s while she's moving), and
-  // restarting the full duration each time would make her drift slower than
-  // the server actually intends. Under prefers-reduced-motion, skip the
-  // glide entirely and just place her exactly where the server says she is
-  // right now (CLAUDE.md's Accessibility section).
-  private animateGuineaPigToTarget() {
-    const sprite = this.guineaPigSprite;
-    const movement = sanctuaryState.guineaPigMovement;
-    if (!sprite || !movement) return;
-
-    const targetPixelX = (this.scale.width * movement.targetX) / 100;
-    const targetPixelY = (this.scale.height * movement.targetY) / 100;
-
-    if (movement.targetX < movement.x) sprite.setFlipX(true);
-    else if (movement.targetX > movement.x) sprite.setFlipX(false);
-
-    this.tweens.killTweensOf(sprite);
-
-    if (this.reducedMotion || movement.durationMs <= 0) {
-      sprite.setPosition(targetPixelX, targetPixelY);
-      return;
-    }
-
-    const remainingMs = Math.max(0, movement.durationMs - (Date.now() - movement.startedAt));
-    this.tweens.add({
-      targets: sprite,
-      x: targetPixelX,
-      y: targetPixelY,
-      duration: remainingMs,
-      ease: "Linear",
-    });
-  }
-
-  private redrawFlowers() {
-    for (const sprite of this.flowerSprites) sprite.destroy();
-    this.flowerSprites = sanctuaryState.flowers.map((flower: FlowerRow) =>
-      this.add.image(
-        (this.scale.width * flower.x) / 100,
-        (this.scale.height * flower.y) / 100,
-        "flower",
-      ),
-    );
   }
 
   // Always destroys and recreates, like redrawFlowers/redrawFurniture ---
@@ -183,21 +78,46 @@ export class OutdoorScene extends Phaser.Scene {
   // keyboard handlers registered further down). See PROCESS.md, "the house
   // disappeared after going back outside."
   private redrawConstructionSite(projectId: string) {
+    if (!this.sys?.displayList) return;
     this.constructionSites.get(projectId)?.destroy();
 
     const site = CONSTRUCTION_SITES.find((s) => s.projectId === projectId);
     if (!site) return; // an unknown projectId in an event payload --- nothing to draw
 
     const key = stageKeyFor(projectId, sanctuaryState.construction[projectId]);
-    const x = (this.scale.width * site.xPercent) / 100;
-    const y = (this.scale.height * site.yPercent) / 100;
+    const x = (MEADOW_WIDTH * site.xPercent) / 100;
+    const y = (MEADOW_HEIGHT * site.yPercent) / 100;
 
-    const sprite = this.add.image(x, y, key).setInteractive();
+    const sprite = this.add.image(x, y, key).setName(`construction:${projectId}`).setInteractive();
     sprite.on("pointerdown", () => {
-      this.suppressNextSceneClick = true;
-      EventBus.emit("open-construction-panel", projectId);
+      const self = presenceState.players.find(p => p.id === presenceState.selfId);
+      if (inReach(self, x, y, BUILD_REACH)) EventBus.emit("open-construction-panel", projectId);
+      else EventBus.emit("interaction-rejected", "Walk up to this building to help build it.");
     });
     this.constructionSites.set(projectId, sprite);
+  }
+
+  // All clients receive this only after an accepted contribution. A short
+  // per-site throttle keeps cooperative clicking from flooding the meadow.
+  private playConstructionDust(projectId: string) {
+    const site = this.constructionSites.get(projectId);
+    if (!site || this.reducedMotion) return;
+    const now = this.time.now;
+    if (now - (this.lastDust.get(projectId) ?? -Infinity) < 180) return;
+    this.lastDust.set(projectId, now);
+    for (let i = 0; i < 5; i++) {
+      const offset = (i - 2) * 7;
+      const puff = this.add.graphics().setPosition(site.x + offset, site.y + 5).setDepth(9);
+      puff.fillStyle(i % 2 ? 0xe2d3b9 : 0xf4ead6, 0.85);
+      puff.fillRoundedRect(-5, -4, 10, 8, 3);
+      puff.fillRoundedRect(-3, -7, 7, 9, 3);
+      puff.setScale(0.6);
+      this.tweens.add({
+        targets: puff, x: puff.x + offset * 0.6, y: puff.y - 22 - (i % 2) * 8,
+        alpha: 0, scaleX: 1.5, scaleY: 1.5, duration: 650 + i * 45,
+        ease: "Sine.easeOut", onComplete: () => puff.destroy(),
+      });
+    }
   }
 
   // Simple and brief on purpose (CLAUDE.md: respect reduced-motion for

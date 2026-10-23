@@ -1,17 +1,22 @@
+import sanctuaryIsland from "../assets/sprites/sanctuary-island.png";
+import mochi from "../assets/sprites/guinea-pig-mochi.png";
+import biscuit from "../assets/sprites/guinea-pig-biscuit.png";
+import clover from "../assets/sprites/guinea-pig-clover.png";
+import visitorGardener from "../assets/sprites/visitor-minimal.png";
 import tileFloor from "../assets/sprites/tile-floor.png";
 import tileWall from "../assets/sprites/tile-wall.png";
 import grassTile from "../assets/sprites/grass-tile.png";
 import flower from "../assets/sprites/flower.png";
-import guineaPig from "../assets/sprites/guinea-pig.png";
-import hayBedFront from "../assets/sprites/furniture-hay_bed-front.png";
-import hayBedBack from "../assets/sprites/furniture-hay_bed-back.png";
-import hayBedLeft from "../assets/sprites/furniture-hay_bed-left.png";
-import tunnelFront from "../assets/sprites/furniture-tunnel-front.png";
-import tunnelBack from "../assets/sprites/furniture-tunnel-back.png";
-import tunnelLeft from "../assets/sprites/furniture-tunnel-left.png";
-import hideoutFront from "../assets/sprites/furniture-hideout-front.png";
-import hideoutBack from "../assets/sprites/furniture-hideout-back.png";
-import hideoutLeft from "../assets/sprites/furniture-hideout-left.png";
+import guineaPig from "../assets/sprites/guinea-pig-minimal.png";
+import hayBedFront from "../assets/sprites/furniture-cozy.png";
+import hayBedBack from "../assets/sprites/furniture-cozy.png";
+import hayBedLeft from "../assets/sprites/furniture-cozy.png";
+import tunnelFront from "../assets/sprites/furniture-cozy.png";
+import tunnelBack from "../assets/sprites/furniture-cozy.png";
+import tunnelLeft from "../assets/sprites/furniture-cozy.png";
+import hideoutFront from "../assets/sprites/furniture-cozy.png";
+import hideoutBack from "../assets/sprites/furniture-cozy.png";
+import hideoutLeft from "../assets/sprites/furniture-cozy.png";
 import iconRotate from "../assets/sprites/icon-rotate.png";
 import iconMove from "../assets/sprites/icon-move.png";
 import iconSave from "../assets/sprites/icon-save.png";
@@ -48,6 +53,9 @@ import greatHall4 from "../assets/sprites/great-hall-4.png";
 // replaces the crit-8/9 procedural Graphics placeholders. Vite imports each
 // PNG as a hashed URL, so BootScene.preload() just needs key -> url.
 export const SPRITE_ASSETS: Record<string, string> = {
+  "sanctuary-island": sanctuaryIsland,
+  mochi, biscuit, clover,
+  "visitor-gardener": visitorGardener,
   "tile-floor": tileFloor,
   "tile-wall": tileWall,
   "grass-tile": grassTile,

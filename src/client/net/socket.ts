@@ -1,9 +1,12 @@
-// Server -> client push only (see src/server/realtime.ts). Reconnects with
-// capped exponential backoff so a Fly idle-stop cold start (fly.toml:
-// auto_stop_machines, min_machines_running=0 --- any open connection gets
-// severed when the machine sleeps) self-heals once the next HTTP request
-// wakes it back up.
+import type { FarmState } from "../../shared/farm.ts";
+import type { GuineaPig } from "../state/useSanctuary.ts";
+import type { MoveIntent, PresenceMessage } from "../../shared/presence.ts";
+
 export type RealtimeMessage =
+  | PresenceMessage
+  | { type: "construction-dust"; projectId: string }
+  | { type: "farm-updated"; farm: FarmState }
+  | { type: "guinea-pig-fed"; guineaPigId: string; guineaPig: GuineaPig }
   | { type: "furniture-placed"; furniture: unknown }
   | { type: "furniture-moved"; furniture: unknown }
   | { type: "furniture-rotated"; furniture: unknown }
@@ -23,6 +26,7 @@ export type RealtimeMessage =
     }
   | {
       type: "guinea-pig-walking";
+      guineaPigId: string;
       x: number;
       y: number;
       targetX: number;
@@ -33,17 +37,34 @@ export type RealtimeMessage =
 
 export interface RealtimeHandle {
   close(): void;
+  send(intent: MoveIntent): void;
 }
 
 export function connectRealtime(
   onMessage: (msg: RealtimeMessage) => void,
   onOpen?: () => void,
+  onDisconnect?: () => void,
 ): RealtimeHandle {
   let socket: WebSocket | undefined;
   let backoff = 500;
   let closedByUs = false;
 
-  function open() {
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  function scheduleReconnect() {
+    if (closedByUs) return;
+    retry = setTimeout(() => void open(), backoff);
+    backoff = Math.min(backoff * 2, 10000);
+  }
+  async function open() {
+    if (closedByUs) return;
+    try {
+      const res = await fetch("/api/state");
+      if (!res.ok) throw new Error("identity unavailable");
+    } catch {
+      scheduleReconnect();
+      return;
+    }
+    if (closedByUs) return;
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     socket = new WebSocket(`${proto}//${location.host}/ws`);
     socket.addEventListener("open", () => {
@@ -59,16 +80,20 @@ export function connectRealtime(
     });
     socket.addEventListener("close", () => {
       if (closedByUs) return;
-      setTimeout(open, backoff);
-      backoff = Math.min(backoff * 2, 10000);
+      onDisconnect?.();
+      scheduleReconnect();
     });
   }
 
-  open();
+  void open();
 
   return {
+    send(intent) {
+      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(intent));
+    },
     close() {
       closedByUs = true;
+      clearTimeout(retry);
       socket?.close();
     },
   };

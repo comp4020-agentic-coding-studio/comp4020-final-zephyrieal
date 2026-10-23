@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { isBuilding } from "../../shared/rooms.ts";
+import { presenceState } from "../game/presenceState.ts";
+import { inReach, sitePosition, BUILD_REACH } from "../../shared/interactions.ts";
+import { useEffect, useState } from "react";
 import { EventBus } from "../game/eventBus.ts";
 import type { ConstructionSnapshot } from "../../server/construction.ts";
 
@@ -22,6 +25,15 @@ export function ConstructionPanel({
 }) {
   const [pulsing, setPulsing] = useState(false);
 
+  useEffect(() => {
+    const check = () => {
+      const self = presenceState.players.find(p => p.id === presenceState.selfId);
+      const site = sitePosition(projectId);
+      if (!site || !inReach(self, site.x, site.y, BUILD_REACH)) onClose();
+    };
+    check(); EventBus.on("presence-updated", check);
+    return () => { EventBus.off("presence-updated", check); };
+  }, [projectId, onClose]);
   if (!construction) return null;
 
   // The exact percent, not floored --- for the newer, much larger projects
@@ -53,7 +65,9 @@ export function ConstructionPanel({
   }
 
   return (
-    <div className="construction-panel" role="dialog" aria-label={`Build ${projectName}`}>
+    <div className="construction-panel" role="dialog" aria-label={`Build ${projectName}`}
+      onPointerDown={event => event.stopPropagation()}
+      onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
       <div className="construction-panel-header">
         <span>🏠 Building {projectName}</span>
         <button
@@ -67,7 +81,8 @@ export function ConstructionPanel({
       </div>
 
       {finished ? (
-        <p className="construction-panel-done">{projectName} is ready! Thank you for building together!</p>
+        <><p className="construction-panel-done">{projectName} is ready! Thank you for building together!</p>
+        {isBuilding(projectId) && <button onClick={() => EventBus.emit("attempt-room", `house:${projectId}`)}>Enter {projectName}</button>}</>
       ) : (
         <>
           <p className="construction-panel-progress-label">Construction: {percentLabel}%</p>
