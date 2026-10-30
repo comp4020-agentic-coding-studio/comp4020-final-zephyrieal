@@ -21,6 +21,8 @@ export type FurnitureKind = keyof typeof FURNITURE_CATALOG;
 export const FEED_REWARD = CROPS.hay.carePoints;
 
 // A border wall ring with a one-tile entrance gap at the bottom-centre.
+export const ENTRANCE_TILE = { x: Math.floor(HOUSE_WIDTH / 2), y: HOUSE_HEIGHT - 1 };
+
 // Expressed as "x,y" string keys so it composes with the overlap check below.
 export const BLOCKED_TILES: Set<string> = (() => {
   const blocked = new Set<string>();
@@ -32,7 +34,7 @@ export const BLOCKED_TILES: Set<string> = (() => {
     blocked.add(`0,${y}`);
     blocked.add(`${HOUSE_WIDTH - 1},${y}`);
   }
-  blocked.delete(`${Math.floor(HOUSE_WIDTH / 2)},${HOUSE_HEIGHT - 1}`); // entrance
+  blocked.delete(`${ENTRANCE_TILE.x},${ENTRANCE_TILE.y}`);
   return blocked;
 })();
 

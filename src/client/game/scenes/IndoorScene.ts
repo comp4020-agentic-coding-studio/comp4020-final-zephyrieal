@@ -6,11 +6,13 @@ import Phaser from "phaser";
 import { addPlayers } from "../PlayerLayer.ts";
 import { EventBus } from "../eventBus.ts";
 import { sanctuaryState } from "../sanctuaryState.ts";
+import { presenceState } from "../presenceState.ts";
 import {
   TILE_SIZE,
   HOUSE_WIDTH,
   HOUSE_HEIGHT,
   BLOCKED_TILES,
+  ENTRANCE_TILE,
   isValidPlacement,
   footprintFor,
   viewFor,
@@ -19,6 +21,19 @@ import {
   type Rotation,
 } from "../../../server/furniture.ts";
 import { GAME_WIDTH, GAME_HEIGHT, HOUSE_ORIGIN_X, HOUSE_ORIGIN_Y } from "../layout.ts";
+
+// Where the wall ring's gap renders, in world pixels --- walking up to it
+// (not onto it: ROOM_BOUNDS clamps the avatar a little short of the actual
+// tile) requests the same "outdoor" transition as the "Go back outside"
+// button, which is what re-validates and places the avatar server-side.
+const DOOR_X = HOUSE_ORIGIN_X + ENTRANCE_TILE.x * TILE_SIZE + TILE_SIZE / 2;
+const DOOR_Y = HOUSE_ORIGIN_Y + ENTRANCE_TILE.y * TILE_SIZE + TILE_SIZE / 2;
+// The indoor spawn point (336, 336, see shared/presence.ts's spawnIn) is 32px
+// from the door centre, and ROOM_BOUNDS.indoor clamps the avatar no closer
+// than 24px --- this has to sit strictly between those two so arriving in
+// the room never immediately bounces a visitor back out, but walking down to
+// the bottom wall still reaches it.
+const DOOR_REACH = 28;
 
 // Three things can be "in hand" at once: buying a new piece from the shop,
 // retrieving a stored one, or editing (moving/rotating/storing) one already
@@ -91,7 +106,25 @@ export class IndoorScene extends Phaser.Scene {
     this.drawFloorAndWalls();
     addGuineaPigs(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room);
     this.add.text(320, 100, roomName(sanctuaryState.room), { fontFamily: "monospace", fontSize: "16px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 10, y: 6 } }).setOrigin(0.5);
+    this.add.text(DOOR_X, DOOR_Y + 12, "Walk through to go outside", {
+      fontFamily: "monospace", fontSize: "10px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 4, y: 2 },
+    }).setOrigin(0.5, 0);
     this.redrawFurniture();
+
+    // Edge-triggered so standing in the doorway only requests the outdoor
+    // transition once, not on every frame; leaving and re-entering the zone
+    // (including after a rejected attempt) re-arms it. The server re-checks
+    // everything through the same /api/room path as "Go back outside" ---
+    // this is only an intent, never a client-decided room change.
+    let nearDoor = false;
+    const checkDoor = () => {
+      const self = presenceState.players.find((player) => player.id === presenceState.selfId);
+      const within = Boolean(self) && Math.hypot(self!.x - DOOR_X, self!.y - DOOR_Y) <= DOOR_REACH;
+      if (within && !nearDoor) EventBus.emit("attempt-room", "outdoor");
+      nearDoor = within;
+    };
+    this.events.on(Phaser.Scenes.Events.UPDATE, checkDoor);
+    onSceneExit(this, () => this.events.off(Phaser.Scenes.Events.UPDATE, checkDoor));
 
     EventBus.on("furniture-updated", this.onFurnitureUpdated);
     EventBus.on("select-furniture", this.onSelectFurniture);
