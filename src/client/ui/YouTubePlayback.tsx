@@ -1,32 +1,47 @@
 import { useEffect, useRef, useState } from "react";
 import type { MusicState } from "../../shared/campfire.ts";
 import { loadYouTube, type YouTubePlayer } from "../net/youtube.ts";
+import { presenceState } from "../game/presenceState.ts";
+import { radioDistanceGain } from "../game/radioDistance.ts";
 import { EventBus } from "../game/eventBus.ts";
 
 type Current = NonNullable<MusicState["current"]>;
-export function YouTubePlayback({ track, enabled, near, muted, volume, serverOffset }: {
-  track: Current; enabled: boolean; near: boolean; muted: boolean; volume: number; serverOffset: number;
+export function YouTubePlayback({ track, enabled, muted, volume, serverOffset }: {
+  track: Current; enabled: boolean; muted: boolean; volume: number; serverOffset: number;
 }) {
   const host = useRef<HTMLDivElement>(null), player = useRef<YouTubePlayer | null>(null);
-  const settings = useRef({ near, muted, volume, serverOffset });
-  settings.current = { near, muted, volume, serverOffset };
+  const audioReady=useRef(false);
+  const settings = useRef({ muted, volume, serverOffset });
+  const audio=useRef<{instance:YouTubePlayer|null;gain:number;lastVolume:number;lastMuted:boolean|undefined;at:number}>({instance:null,gain:1,lastVolume:-1,lastMuted:undefined,at:0});
+  settings.current = { muted, volume, serverOffset };
   const [status, setStatus] = useState("Enable sound to load the YouTube player."), [retry, setRetry] = useState(0);
   const elapsed = () => Math.max(0, (Date.now() + settings.current.serverOffset - track.startedAt) / 1000);
-  useEffect(() => {
-    const p = player.current;
-    if (!p) return;
-    p.setVolume(volume * 100);
-    if (muted || !near) p.mute(); else p.unMute();
-    if (!near) p.pauseVideo();
-  }, [near, muted, volume]);
+  const updateAudio=()=>{
+    const p=player.current;if(!p||!audioReady.current)return;
+    const self=presenceState.players.find(visitor=>visitor.id===presenceState.selfId);
+    const target=radioDistanceGain(self),now=performance.now(),state=audio.current;
+    if(state.instance!==p){state.instance=p;state.gain=target;state.lastVolume=-1;state.lastMuted=undefined;state.at=now;}
+    const blend=1-Math.exp(-Math.max(0,Math.min(200,now-state.at))/220);
+    state.gain+=(target-state.gain)*blend;state.at=now;
+    const effective=Math.round(settings.current.volume*state.gain*100);
+    if(effective!==state.lastVolume){p.setVolume(effective);state.lastVolume=effective;}
+    if(settings.current.muted!==state.lastMuted){
+      if(settings.current.muted)p.mute();else p.unMute();
+      state.lastMuted=settings.current.muted;
+    }
+  };
+  useEffect(()=>{
+    updateAudio();
+    const timer=setInterval(updateAudio,50);
+    return ()=>clearInterval(timer);
+  },[muted,volume]);
   useEffect(() => {
     if (!enabled || !host.current) return;
+    audioReady.current=false;
     let cancelled = false, ready = false, wasVisible = false;
-    let observer: IntersectionObserver | undefined;
     let interval: ReturnType<typeof setInterval> | undefined;
-    let intersection = false;
-    const visible = () => !!host.current && intersection && !document.hidden && settings.current.near &&
-      getComputedStyle(host.current).visibility !== "hidden" && !host.current.closest("[inert]");
+    // Collapsing the radio hides controls, not the listening session.
+    const visible = () => !document.hidden;
     const report = (p: YouTubePlayer) => {
       const seconds = p.getDuration();
       if (seconds > 0) EventBus.emit("visitor-input", { type: "music-duration", playbackId: track.playbackId, seconds });
@@ -34,7 +49,7 @@ export function YouTubePlayback({ track, enabled, near, muted, volume, serverOff
     const updateVisibility = () => {
       if (!ready || !player.current) return;
       const shown = visible();
-      if (!shown) { player.current.pauseVideo(); if (wasVisible) setStatus("Paused locally. Keep the player visible and stay near the fire."); }
+      if (!shown) { player.current.pauseVideo(); if (wasVisible) setStatus("Paused locally while the game tab is hidden."); }
       else if (!wasVisible) { player.current.seekTo(elapsed(), true); player.current.playVideo(); }
       wasVisible = shown;
     };
@@ -48,14 +63,12 @@ export function YouTubePlayback({ track, enabled, near, muted, volume, serverOff
         events: {
           onReady: ({target}) => {
             if (cancelled) return;
-            player.current = target; ready = true;
+            player.current = target; ready = true; audioReady.current=true;
             target.getIframe().title = `YouTube: ${track.title}`;
             target.getIframe().referrerPolicy = "strict-origin-when-cross-origin";
-            target.setVolume(settings.current.volume * 100);
-            if (settings.current.muted || !settings.current.near) target.mute(); else target.unMute();
+            updateAudio();
             report(target); setStatus("Use the YouTube player to listen. Playback may differ between visitors.");
-            observer = new IntersectionObserver(entries => { intersection = entries[0].intersectionRatio >= .5; updateVisibility(); }, {threshold: [.5]});
-            observer.observe(host.current!);
+            updateVisibility();
             interval = setInterval(() => { updateVisibility(); }, 500);
           },
           onStateChange: ({target,data}) => {
@@ -70,7 +83,7 @@ export function YouTubePlayback({ track, enabled, near, muted, volume, serverOff
       player.current = instance;
     }).catch(error => { if (!cancelled) setStatus(error.message); });
     document.addEventListener("visibilitychange", updateVisibility);
-    return () => { cancelled = true; clearInterval(interval); observer?.disconnect(); document.removeEventListener("visibilitychange", updateVisibility); player.current?.destroy(); player.current = null; };
+    return () => { audioReady.current=false; cancelled = true; clearInterval(interval); document.removeEventListener("visibilitychange", updateVisibility); player.current?.destroy(); player.current = null; };
   }, [track.playbackId, enabled, retry]);
   return <section className="youtube-playback" aria-label="YouTube player">
     <strong>YouTube · shared playback prototype</strong>
@@ -78,9 +91,9 @@ export function YouTubePlayback({ track, enabled, near, muted, volume, serverOff
     <p role="status">{status}</p>
     <a href={`https://www.youtube.com/watch?v=${track.videoId}`} target="_blank" rel="noreferrer">Open on YouTube ↗</a>
     {enabled && <button type="button" onClick={() => {
-      if (player.current && near) { player.current.seekTo(elapsed(), true); player.current.playVideo(); }
+      if (player.current && audioReady.current) { player.current.seekTo(elapsed(), true); player.current.playVideo(); }
       else setRetry(n => n + 1);
     }}>Rejoin shared playback</button>}
-    <small>Keep the video visible to listen. Ads, availability and autoplay can differ for each visitor.</small>
+    <small>Music continues when the radio controls are collapsed. Ads, availability and autoplay can differ for each visitor.</small>
   </section>;
 }

@@ -32,7 +32,7 @@ export function CampfirePanel() {
     <p>Up next · one waiting track per visitor</p><ol>{music.upcoming.map((t,i)=><li key={`${t.playerId}-${i}`}>{title(t)}{t.playerId===self?.id ? " · yours" : ""}</li>)}</ol>{!music.upcoming.length && <p className="shop-hint">The queue is clear.</p>}
     {near && <div className="campfire-track-buttons"><button onClick={()=>send({type:"music-remove"})}>Remove my waiting track</button></div>}</div>
     {music.current?.videoId && <>
-      <YouTubePlayback track={music.current} enabled={enabled} near={near} muted={muted} volume={volume}
+      <YouTubePlayback track={music.current} enabled={enabled} muted={muted} volume={volume}
         serverOffset={clock.current.server - clock.current.local} />
       {near && music.current.playerId === self?.id && <button type="button" onClick={() => send({type:"music-skip",playbackId:music.current!.playbackId})}>Skip my current YouTube track</button>}
     </>}
@@ -50,7 +50,7 @@ export function CampfirePanel() {
     </form>}
     </div></div>
     <div className="radio-now" role="status">{music.current ? title(music.current) : "Quiet by the fire"}</div>
-    <div className="campfire-listening"><strong>Your listening</strong><p>Sound stays near the fire.</p><button onClick={() => setEnabled(true)}>{enabled ? "Sound enabled" : "Enable sound"}</button>
+    <div className="campfire-listening"><strong>Your listening</strong><p>Music gets quieter as you walk away from the fire.</p><button onClick={() => setEnabled(true)}>{enabled ? "Sound enabled" : "Enable sound"}</button>
     <button aria-pressed={muted} onClick={()=>setMuted(!muted)}>{muted ? "Unmute music" : "Mute music"}</button><label>Volume <input aria-label="Music volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={e=>setVolume(Number(e.target.value))}/></label></div>
     <details className="music-notes" hidden={!expanded}><summary>About the music</summary><small>YouTube links use its visible embedded player. Shared YouTube playback is a prototype: up to 10 minutes per selection, or 5 minutes if the submitter’s player cannot report its length. The submitter can skip an unavailable track. Queues clear on server restart.</small></details>
   </section>;

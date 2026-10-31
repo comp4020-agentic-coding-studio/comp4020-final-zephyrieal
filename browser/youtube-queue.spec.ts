@@ -32,8 +32,29 @@ test("YouTube links share the queue and personal controls use the visible player
  await expect(b.getByRole("button",{name:"Mute music",exact:true})).toHaveAttribute("aria-pressed","false");
  await a.getByRole("slider",{name:"Music volume",exact:true}).fill("0.12");await expect.poll(()=>a.evaluate(()=> (window as any).youtubeCalls.includes("volume:12"))).toBe(true);
  await a.locator(".youtube-frame").scrollIntoViewIfNeeded();await a.screenshot({path:"/tmp/sanctuary-youtube-queue.png"});
- await walkTo(a,{x:480,y:200},20);await expect.poll(()=>a.evaluate(()=> (window as any).youtubeCalls.slice(-3).includes("pause"))).toBe(true);
- await walkTo(a,{x:640,y:640},20);await a.getByRole("button",{name:"Skip my current YouTube track"}).click();
+ await a.getByRole("button",{name:"Unmute music",exact:true}).click();
+ await expect.poll(()=>a.evaluate(()=> (window as any).youtubeCalls.at(-1))).toBe("unmute");
+ const callStart=await a.evaluate(()=> (window as any).youtubeCalls.length);
+ const radioToggle=a.getByRole("button",{name:/Campfire Radio/});
+ await radioToggle.click();
+ await expect(radioToggle).toHaveAttribute("aria-expanded","false");
+ await expect(a.locator(".youtube-frame")).toBeHidden();
+ await a.waitForTimeout(1100);
+ expect(await a.evaluate(start=>(window as any).youtubeCalls.slice(start).filter((call:string)=>["pause","seek"].includes(call)),callStart)).toEqual([]);
+ await radioToggle.click();
+ await expect(a.locator(".youtube-frame iframe")).toHaveCount(1);
+ await a.waitForTimeout(600);
+ expect(await a.evaluate(start=>(window as any).youtubeCalls.slice(start).filter((call:string)=>["pause","seek"].includes(call)),callStart)).toEqual([]);
+ const effectiveVolume=()=>a.evaluate(()=>Number((window as any).youtubeCalls.filter((call:string)=>call.startsWith("volume:")).at(-1).split(":")[1]));
+ await walkTo(a,{x:480,y:200},20);
+ await expect.poll(effectiveVolume).toBeLessThan(12);
+ expect(await effectiveVolume()).toBeGreaterThan(0);
+ await expect(a.getByRole("slider",{name:"Music volume",exact:true})).toHaveValue("0.12");
+ expect(await a.evaluate(start=>(window as any).youtubeCalls.slice(start).filter((call:string)=>["pause","seek","mute"].includes(call)),callStart)).toEqual([]);
+ await a.screenshot({path:"/tmp/sanctuary-radio/distant-radio.png"});
+ await walkTo(a,{x:640,y:640},20);
+ await expect.poll(effectiveVolume).toBe(12);
+ await a.getByRole("button",{name:"Skip my current YouTube track"}).click();
  await expect(b.getByRole("status").filter({hasText:"Now playing: Next video"})).toBeVisible();expect(errors).toEqual([]);
  }finally{
   for(const page of [a,b]) {
