@@ -18,10 +18,11 @@ export function createPresence() {
   return {
     snapshot,
     playerFor(ws: WebSocket) { return sessions.get(ws)?.player; },
-    join(ws: WebSocket) {
+    join(ws: WebSocket, name?: string) {
       const player: Player = {
         id: randomUUID(), room: "outdoor", ...spawnIn("outdoor"),
         facing: 1, moving: false, color: palette[nextColor++ % palette.length],
+        ...(name ? { name } : {}),
       };
       // Spread arrivals out so newcomers can see one another immediately.
       player.x += ((sessions.size % 5) - 2) * 64;
@@ -40,6 +41,10 @@ export function createPresence() {
       session.player.moving = false;
       session.dx = 0; session.dy = 0; dirty = true;
       return session.player;
+    },
+    rename(ws: WebSocket, name: string) {
+      const session = sessions.get(ws);
+      if (session) { session.player.name = name; dirty = true; }
     },
     leave(ws: WebSocket) { dirty = sessions.delete(ws) || dirty; },
     input(ws: WebSocket, value: unknown, now: number) {

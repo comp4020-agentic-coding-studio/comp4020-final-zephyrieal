@@ -26,6 +26,7 @@ interface StateResponse {
   furniture: FurnitureRow[];
   storedFurniture: FurnitureRow[];
   carePoints: number;
+  visitorName: string | null;
   construction: Record<string, ConstructionSnapshot>;
 }
 
@@ -38,6 +39,9 @@ interface StateResponse {
 export function useSanctuary() {
   const [guineaPig, setGuineaPig] = useState<GuineaPig | null>(null);
   const [carePoints, setCarePoints] = useState(0);
+  // undefined until the first /api/state answers, so the welcome screen
+  // never flashes for a returning visitor who already has a name.
+  const [visitorName, setVisitorName] = useState<string | null | undefined>(undefined);
 
   const [furniture, setFurniture] = useState<FurnitureRow[]>([]);
   const [storedFurniture, setStoredFurniture] = useState<FurnitureRow[]>([]);
@@ -126,6 +130,7 @@ export function useSanctuary() {
     setGuineaPig(data.guineaPig);
     applyGuineaPigMovement(data.guineaPigMovement);
     setCarePoints(data.carePoints);
+    setVisitorName(data.visitorName);
     applyFarm(data.farm);
     applyFurniture(data.furniture);
     setStoredFurniture(data.storedFurniture);
@@ -159,6 +164,18 @@ export function useSanctuary() {
       await loadState();
     } catch { flashRejection("Could not change rooms. Please try again."); }
     finally { changingRoom = false; }
+  }
+
+  // Returns a reason on failure, null on success; the server's echo through
+  // presence-state is what actually relabels the avatar.
+  async function chooseName(name: string): Promise<string | null> {
+    try {
+      const res = await fetch("/api/name", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      const data = await res.json();
+      if (!res.ok) return data.reason ?? "Could not save that name.";
+      setVisitorName(data.name);
+      return null;
+    } catch { return "Connection interrupted. Try again."; }
   }
 
   let feeding = false;
@@ -480,5 +497,5 @@ export function useSanctuary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { guineaPig, carePoints, furniture, storedFurniture, construction, rejection, feed };
+  return { guineaPig, carePoints, visitorName, chooseName, furniture, storedFurniture, construction, rejection, feed };
 }

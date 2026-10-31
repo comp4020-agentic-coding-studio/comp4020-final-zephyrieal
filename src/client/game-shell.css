@@ -120,3 +120,20 @@ main.game-shell { width: 100%; height: 100dvh; max-width: none; margin: 0; paddi
 .game-viewport .youtube-queue-form input {background:#e8f1dc;}
 .game-viewport .radio-details {max-height:310px;overflow:auto;}
 @media(max-width:600px){.game-viewport > .campfire-panel{right:10px;bottom:10px;width:240px;font-size:10px;max-height:48%;}}
+/* First-visit name screen. Fixed so it also covers the mobile sidebar overlay. */
+.change-name { max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.welcome-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: #342c20cc; }
+.welcome-card { width: min(380px, 100%); padding: 22px 20px 18px; background: var(--paper); color: var(--ink); border: 3px solid var(--wood); box-shadow: inset 0 0 0 2px #fff1cf, 4px 4px 0 #1f1a12; font: 12px/1.5 "Courier New", monospace; }
+.welcome-card h2 { font-family: inherit; font-size: 20px; line-height: 1.15; letter-spacing: -.6px; margin: 8px 0 10px; color: #705135; }
+.welcome-card p { margin: 0 0 14px; }
+.welcome-card label { display: block; font-weight: bold; margin-bottom: 4px; }
+.welcome-card input { width: 100%; padding: 8px; font: inherit; font-size: 14px; color: var(--ink); background: #fffaf0; border: 2px solid #705c3a; border-radius: 0; }
+.welcome-card input:focus-visible { outline: 2px solid #8b4f2c; outline-offset: 2px; }
+.welcome-error { margin: 8px 0 0 !important; padding: 6px; font-size: 11px; border: 2px solid #a76f4d; background: #f4d8b3; }
+.welcome-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 16px; }
+.welcome-actions button { border: 2px solid #705c3a; border-radius: 0; background: #ede0b8; color: #453b28; padding: 8px 10px; font-family: inherit; font-size: 11px; font-weight: bold; cursor: pointer; box-shadow: inset 2px 2px #fff7db, inset -2px -2px #c5b07c, 0 2px #79633f; }
+.welcome-actions button[type="submit"] { background: #c7d09c; }
+.welcome-actions button:hover:not(:disabled) { background: #fff0c3; }
+.welcome-actions button:focus-visible { outline: 2px solid #8b4f2c; outline-offset: 2px; }
+.welcome-actions button:disabled { opacity: .48; }
+.welcome-skip { box-shadow: none !important; background: transparent !important; border-color: transparent !important; text-decoration: underline; }

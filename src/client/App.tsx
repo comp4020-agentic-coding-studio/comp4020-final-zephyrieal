@@ -9,6 +9,7 @@ import { ShopPanel } from "./ui/ShopPanel.tsx";
 import { StoragePanel } from "./ui/StoragePanel.tsx";
 import { ConstructionPanel } from "./ui/ConstructionPanel.tsx";
 import { useSanctuary } from "./state/useSanctuary.ts";
+import { WelcomeScreen } from "./ui/WelcomeScreen.tsx";
 import { PROJECTS } from "../server/construction.ts";
 
 function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
@@ -22,9 +23,23 @@ function traceText(guineaPig: ReturnType<typeof useSanctuary>["guineaPig"]) {
   );
 }
 
+const WELCOME_SKIPPED_KEY = "sanctuary-welcome-skipped";
+
 export default function App() {
-  const { guineaPig, carePoints, storedFurniture, construction, rejection } =
+  const { guineaPig, carePoints, visitorName, chooseName, storedFurniture, construction, rejection } =
     useSanctuary();
+  // Skipping is a per-browser UI convenience, not shared world state, so
+  // localStorage is fine here; the name itself is saved on the server.
+  const [welcomeSkipped, setWelcomeSkipped] = useState(() => {
+    try { return localStorage.getItem(WELCOME_SKIPPED_KEY) === "1"; } catch { return false; }
+  });
+  const [renaming, setRenaming] = useState(false);
+  const showWelcome = renaming || (visitorName === null && !welcomeSkipped);
+  function closeWelcome() {
+    if (renaming) { setRenaming(false); return; }
+    try { localStorage.setItem(WELCOME_SKIPPED_KEY, "1"); } catch { /* still dismissed for this visit */ }
+    setWelcomeSkipped(true);
+  }
   const [sidebarOpen, setSidebarOpen] = useState(() => window.matchMedia("(min-width: 760px)").matches);
   const [view, setView] = useState<Room>("outdoor");
   const [openConstructionProjectId, setOpenConstructionProjectId] = useState<string | null>(null);
@@ -60,6 +75,8 @@ export default function App() {
           aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? "Hide sidebar ›" : "‹ Open sidebar"}
         </button>
+        {showWelcome && <WelcomeScreen initialName={visitorName ?? ""} onSkip={closeWelcome}
+          onSave={async (name) => { const failure = await chooseName(name); if (!failure) setRenaming(false); return failure; }} />}
       </div>
       <aside id="game-sidebar" className="game-sidebar" aria-label="Sanctuary sidebar" inert={!sidebarOpen}>
         <header className="sidebar-header">
@@ -68,6 +85,9 @@ export default function App() {
           <p className="room-name">{view === "outdoor" ? "The meadow" : roomName(view)} <span>· shared world</span></p>
           <div className="toolbar">
             <CarePointsBadge value={carePoints} />
+            <button type="button" className="change-name" onClick={() => setRenaming(true)}>
+              {visitorName ? `${visitorName} · change` : "Choose a name"}
+            </button>
           </div>
         </header>
 
@@ -100,7 +120,7 @@ export default function App() {
           <details className="field-guide">
             <summary>Field guide & controls</summary>
             <p>A small, shared meadow for Huahua, Mochi, Biscuit and Clover. Changes to the sanctuary stay for the next visitor.</p>
-            <p>Click the meadow, then use <strong>WASD or arrow keys</strong> to walk. Your character is labelled “You”. Walk up to an animal or building and press <strong>E</strong>, or tap its nearby action. Finished buildings, including the shared shelter, are entered on foot; walk out through the doorway to leave.</p>
+            <p>Click the meadow, then use <strong>WASD or arrow keys</strong> to walk. Your character is labelled with your name (or “You”). Walk up to an animal or building and press <strong>E</strong>, or tap its nearby action. Finished buildings, including the shared shelter, are entered on foot; walk out through the doorway to leave.</p>
             <p>Click the shared garden to plant or harvest food. Everyone can help it grow.</p>
             <p>Walk beside a free campfire log and press E to sit. Press E again or walk to stand again.</p>
             <a href="/readme/" target="_blank" rel="noreferrer">About this sanctuary ↗</a>

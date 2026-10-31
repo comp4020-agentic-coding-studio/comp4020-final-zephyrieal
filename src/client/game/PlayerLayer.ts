@@ -62,7 +62,7 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
         const marker = scene.add.ellipse(0, 2, 32, 12).setStrokeStyle(2, player.color);
         const body = scene.add.image(0, 0, "visitor-gardener", "front").setOrigin(0.5, 1);
         body.setDisplaySize(body.frame.width / body.frame.height * 54, 54);
-        const label = scene.add.text(0, -64, self ? "You" : `Visitor ${player.id.slice(0, 4)}`, {
+        const label = scene.add.text(0, -64, "", {
           fontFamily: "monospace", fontSize: "10px", color: "#253a28", backgroundColor: "#fffaf0",
           padding: { x: 4, y: 2 },
         }).setOrigin(0.5, 1);
@@ -81,6 +81,11 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       const nearbyEarlier = visible.slice(0, visible.indexOf(player)).filter(other =>
         Math.abs(other.x - player.x) < 75 && Math.abs(other.y - player.y) < 20).length;
       avatar.label.y = -64 - nearbyEarlier * 16;
+      // Names can change mid-visit (the welcome screen or "Change name"), so
+      // the label is refreshed every frame rather than fixed at creation.
+      const self = player.id === presenceState.selfId;
+      const labelText = player.name ? (self ? `${player.name} (you)` : player.name) : (self ? "You" : `Visitor ${player.id.slice(0, 4)}`);
+      if (avatar.label.text !== labelText) avatar.label.setText(labelText);
       avatar.gesture.setText(player.gesture === "wave" ? "Waving hello" : player.gesture === "help" ? "Help here!" : player.gesture === "sit" ? "Sitting" : "");
       avatar.gesture.setVisible(Boolean(player.gesture));
       avatar.gesture.y = avatar.label.y - 20;

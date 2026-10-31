@@ -4,6 +4,7 @@ import { logAction } from "./log.ts";
 import { verifyVisitorCookie } from "./identity.ts";
 import { createMusicQueue } from "./campfire.ts";
 import { createPresence } from "./presence.ts";
+import { getName } from "./names.ts";
 
 // Persistent mutations use HTTP; ephemeral movement intents use this socket.
 const presence = createPresence();
@@ -73,7 +74,7 @@ export function attachRealtime(httpServer: Server): void {
       alive.add(ws);
       ws.on("pong", () => alive.add(ws));
       ws.on("error", () => ws.terminate());
-      const selfId = presence.join(ws);
+      const selfId = presence.join(ws, getName(visitorId));
       ws.send(JSON.stringify({ type: "presence-welcome", selfId, players: presence.snapshot() }));
       ws.send(JSON.stringify({ type: "music-state", music: music.snapshot(Date.now()) }));
       let musicWindow = 0, musicMessages = 0;
@@ -107,6 +108,11 @@ export function attachRealtime(httpServer: Server): void {
       });
     });
   });
+}
+
+// Relabels every tab this visitor has open; the next presence tick carries it.
+export function renameVisitor(visitorId: string, name: string): void {
+  for (const ws of connections.get(visitorId) ?? []) presence.rename(ws, name);
 }
 
 export function broadcast(message: unknown): void {

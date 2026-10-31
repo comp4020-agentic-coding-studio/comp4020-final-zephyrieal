@@ -21,5 +21,15 @@ export default defineConfig({
   },
   use: {
     baseURL: process.env.BROWSER_URL ?? "http://localhost:5173",
+    // Every spec starts as a brand-new visitor; pre-dismiss the first-visit
+    // name screen so it doesn't cover the game. browser/welcome.spec.ts
+    // clears this to test the screen itself.
+    storageState: {
+      cookies: [],
+      origins: [{
+        origin: new URL(process.env.BROWSER_URL ?? "http://localhost:5173").origin,
+        localStorage: [{ name: "sanctuary-welcome-skipped", value: "1" }],
+      }],
+    },
   },
 });

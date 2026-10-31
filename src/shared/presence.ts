@@ -8,6 +8,7 @@ export type PresenceIntent = { type: "campfire-seat"; seatId: string } | { type:
 export interface Player {
   seatId?: string;
   gesture?: Gesture;
+  name?: string;
   id: string;
   room: Room;
   x: number;

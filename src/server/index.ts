@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { marked } from "marked";
 import { db } from "./db.ts";
-import { attachRealtime, broadcast, sendToVisitor, playerForVisitor, movePlayerRoom } from "./realtime.ts";
+import { attachRealtime, broadcast, sendToVisitor, playerForVisitor, movePlayerRoom, renameVisitor } from "./realtime.ts";
+import { cleanName, getName, setName, NAME_MAX_LENGTH } from "./names.ts";
 import {
   getBalance,
   getFurniture,
@@ -132,10 +133,22 @@ app.get("/api/state", (req: Request, res: Response) => {
     furniture,
     storedFurniture,
     carePoints,
+    visitorName: getName(req.visitorId) ?? null,
     construction,
     recentVisits,
     carrot: carrot.state(),
   });
+});
+
+// The name shown above this visitor's avatar. Only ever the caller's own
+// name --- the cookie decides whose, never a client-supplied id.
+app.post("/api/name", (req: Request, res: Response) => {
+  const name = cleanName(req.body?.name);
+  if (!name) { res.status(400).json({ ok: false, reason: `Choose a name of 1–${NAME_MAX_LENGTH} characters.` }); return; }
+  setName(req.visitorId, name);
+  renameVisitor(req.visitorId, name);
+  logAction(req.visitorId, "chose-name", { name });
+  res.json({ ok: true, name });
 });
 
 // Feeding earns Care Points (CLAUDE.md's discussed exception) alongside the
