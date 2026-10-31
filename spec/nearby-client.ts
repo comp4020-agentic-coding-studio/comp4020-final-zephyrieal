@@ -1,11 +1,12 @@
 // Integration fixtures walk real authenticated avatars before invoking proximity
 // actions. There is no teleport endpoint or production test bypass.
 import WebSocket from "ws";
+import { meadowRoute } from "./meadow-route.ts";
 import { randomUUID } from "node:crypto";
 import { afterEach } from "vitest";
 import { cookieFor } from "./identity.ts";
 import type { Player } from "../src/shared/presence.ts";
-import { sitePosition, FEED_REACH, BUILD_REACH } from "../src/shared/interactions.ts";
+import { sitePosition, FEED_REACH, BUILD_REACH, roomDimensions } from "../src/shared/interactions.ts";
 import { FARM_PLOTS, FARM_REACH } from "../src/shared/farm.ts";
 interface Actor { ws: WebSocket; id: string; player: Player; cookie: string }
 const actors = new Map<string, Promise<Actor>>();
@@ -34,11 +35,13 @@ export async function approachCookie(base: string, cookie: string, target: strin
   if (walks.has(key)) return walks.get(key)!;
   const work = (async () => {
     const a = await actor(base, cookie);
-    for (let i = 0; i < 150; i++) {
+    let route:{x:number;y:number}[]=[];
+    for (let i = 0; i < 600; i++) {
       let x: number, y: number, reach: number;
       if (target === "feed") {
         const state = await globalThis.fetch(new URL("/api/state", base)).then(r => r.json());
-        x = state.guineaPigMovement.x * 6.4; y = state.guineaPigMovement.y * 5.12; reach = FEED_REACH - 25;
+        const size=roomDimensions(state.guineaPigMovement.room);
+        x = state.guineaPigMovement.x * size.width/100; y = state.guineaPigMovement.y * size.height/100; reach = FEED_REACH - 25;
       } else if (target === "farm") {
         ({ x, y } = FARM_PLOTS[0]); reach = FARM_REACH - 15;
       } else {
@@ -49,8 +52,12 @@ export async function approachCookie(base: string, cookie: string, target: strin
         a.ws.send(JSON.stringify({ type: "visitor-input", room: "outdoor", dx: 0, dy: 0 }));
         return a;
       }
-      a.ws.send(JSON.stringify({ type: "visitor-input", room: "outdoor", dx: dx / Math.max(1, distance), dy: dy / Math.max(1, distance) }));
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if(!route.length)route=meadowRoute(a.player,{x,y},Math.max(8,reach-12));
+      while(route.length>1&&Math.hypot(route[0].x-a.player.x,route[0].y-a.player.y)<8)route.shift();
+      if(route.length===1&&Math.hypot(route[0].x-a.player.x,route[0].y-a.player.y)<8){route=[];continue;}
+      const waypoint=route[0],wx=waypoint.x-a.player.x,wy=waypoint.y-a.player.y;
+      a.ws.send(JSON.stringify({type:"visitor-input",room:"outdoor",dx:Math.abs(wx)>Math.abs(wy)?Math.sign(wx):0,dy:Math.abs(wx)>Math.abs(wy)?0:Math.sign(wy)}));
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
     throw new Error(`Could not walk to ${target}`);
   })();

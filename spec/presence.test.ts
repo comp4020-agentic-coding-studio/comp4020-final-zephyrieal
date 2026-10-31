@@ -33,6 +33,7 @@ it("rejects malformed, non-finite, out-of-range and unknown-room intents", () =>
 it("stops when input expires, stays in bounds and resets position on room changes", () => {
   const { presence, ws } = fixture();
   const intent = { type: "visitor-input", room: "outdoor", dx: 1, dy: 0 };
+  presence.moveRoom(presence.playerFor(ws)!.id,"outdoor",{x:640,y:620});
   for (let n = 0; n < 100; n++) {
     presence.input(ws, intent, n * 100);
     presence.tick(n * 100, 0.1);

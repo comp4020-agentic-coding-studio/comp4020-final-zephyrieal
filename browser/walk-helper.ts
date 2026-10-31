@@ -1,3 +1,5 @@
+import { meadowRoute } from "../spec/meadow-route.ts";
+import { roomDimensions } from "../src/shared/interactions.ts";
 import { sitePosition } from "../src/shared/interactions.ts";
 import { expect, type Page } from "@playwright/test";
 export async function presence(page: Page) {
@@ -24,21 +26,30 @@ export async function walkTo(page: Page, target: string | { x: number; y: number
     }
   }
   await page.locator(".game-container").focus();
+  const initial=await presence(page),visitor=initial.players.find(v=>v.id===initial.selfId);
+  if(visitor?.seatId){await page.keyboard.down("s");await page.waitForTimeout(150);await page.keyboard.up("s");}
   let held: string[] = [];
+  let route:{x:number;y:number}[]=[];
   try {
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 600; i++) {
       const state = await presence(page), self = state.players.find(p => p.id === state.selfId);
       const destination = typeof target === "string"
-        ? await page.request.get("/api/state").then(r => r.json()).then(s => ({ x: (target === "feed" ? s.guineaPigMovement : s.guineaPigs.find((p: { id: string }) => p.id === target).movement).x * 6.4, y: (target === "feed" ? s.guineaPigMovement : s.guineaPigs.find((p: { id: string }) => p.id === target).movement).y * 5.12 })) : target;
-      const dx = destination.x - self.x, dy = destination.y - self.y;
-      if (Math.hypot(dx, dy) <= reach) return;
-      const next = [...(Math.abs(dx) > 10 ? [dx < 0 ? "a" : "d"] : []), ...(Math.abs(dy) > 10 ? [dy < 0 ? "w" : "s"] : [])];
+        ? await page.request.get("/api/state").then(r => r.json()).then(s => ({ x: (target === "feed" ? s.guineaPigMovement : s.guineaPigs.find((p: { id: string }) => p.id === target).movement).x * (roomDimensions(self.room).width/100), y: (target === "feed" ? s.guineaPigMovement : s.guineaPigs.find((p: { id: string }) => p.id === target).movement).y * (roomDimensions(self.room).height/100) })) : target;
+      if (Math.hypot(destination.x-self.x,destination.y-self.y)<=reach) return;
+      if(self.room==="outdoor" && !route.length)route=meadowRoute(self,destination,Math.max(8,reach-8));
+      while(route.length>1 && Math.hypot(route[0].x-self.x,route[0].y-self.y)<5)route.shift();
+      const waypoint=self.room==="outdoor"?(route[0]??destination):destination;
+      const dx = waypoint.x - self.x, dy = waypoint.y - self.y;
+      if(route.length===1 && Math.hypot(dx,dy)<14 && typeof target==="string")route=[];
+      const next = Math.abs(dx)>Math.abs(dy)
+        ? (Math.abs(dx)>3?[dx<0?"a":"d"]:[])
+        : (Math.abs(dy)>3?[dy<0?"w":"s"]:[]);
       for (const key of held.filter(k => !next.includes(k))) await page.keyboard.up(key);
       for (const key of next.filter(k => !held.includes(k))) await page.keyboard.down(key);
       held = next;
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(50);
     }
-    throw new Error("Could not walk to interaction");
+    throw new Error(`Could not walk to ${JSON.stringify(target)}: ${JSON.stringify(await presence(page))}; route ${JSON.stringify(route)}`);
   } finally { for (const key of held) await page.keyboard.up(key); }
 }
 export async function feedHuahua(page: Page) {

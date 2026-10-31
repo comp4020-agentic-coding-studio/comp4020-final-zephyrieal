@@ -1,3 +1,4 @@
+import { walkTo } from "./walk-helper.ts";
 import { test, expect, type Page } from "@playwright/test";
 async function state(page: Page) {
   return page.evaluate(async () => { const path = "/game/presenceState.ts"; return (await import(path)).presenceState; });
@@ -17,9 +18,10 @@ test("visitors exchange gestures and walking ends sitting", async ({ browser }) 
     await a.getByRole("button", { name: "Help here", exact: true }).click();
     await expect.poll(gesture, { timeout: 1000 }).toBe("help");
     await expect.poll(gesture, { timeout: 4000 }).toBeUndefined();
-    await a.getByRole("button", { name: "Sit", exact: true }).click();
+    await walkTo(a, {x:554,y:514}, 15);
+    await a.locator(".game-container").focus(); await a.keyboard.press("e");
     await expect.poll(gesture, { timeout: 1000 }).toBe("sit");
-    await expect(a.getByRole("button", { name: "Stand up", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(a.locator(".game-container").getByRole("button", { name: "Stand up", exact: true })).toBeVisible();
     await b.screenshot({ path: "/tmp/sanctuary-gestures.png", fullPage: true });
     await a.locator(".game-container").focus(); await a.keyboard.down("d");
     await expect.poll(gesture, { timeout: 1000 }).toBeUndefined(); await a.keyboard.up("d");

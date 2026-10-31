@@ -15,11 +15,11 @@ export default defineConfig({
   timeout: 30_000,
   webServer: {
     command: "pnpm dev",
-    url: "http://localhost:5173",
+    url: process.env.BROWSER_URL ?? "http://localhost:5173",
     reuseExistingServer: true,
     timeout: 60_000,
   },
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: process.env.BROWSER_URL ?? "http://localhost:5173",
   },
 });
