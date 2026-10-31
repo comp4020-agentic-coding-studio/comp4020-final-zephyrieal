@@ -16,5 +16,8 @@ These records describe decisions implemented in the sanctuary. Existing records 
 | [010](0010-shared-indoor-guinea-pig-visits.md) | One shared location per inhabitant, indoor wandering and room-checked feeding |
 | [011](0011-social-encounters-and-furniture-behaviour.md) | Social gestures, shared indoor encounters and autonomous furniture use |
 | [012](0012-cooperative-carrot.md) | Two distinct nearby visitors pull one carrot into the shared pantry |
+| [013](0013-campfire-game-window-and-shared-music.md) | Central campfire seating, full-window game shell, visible animal resting and a YouTube-only queue |
 
 As of 2026-10-22, ADR 006 supersedes earlier descriptions of active flower planting, and ADR 007 adds live avatar presence to the existing identity model. Art and sprite revisions are intentionally excluded. The sanctuary now has four named inhabitants. Each has independent server-owned wandering and a persistent feeding record; proximity and shared pantry rules still apply.
+
+ADR 013 records the 2026-10-30 gathering-area changes and replaces ADR 011’s standalone Sit button and resting captions. Art-only revisions remain outside this index; the sleeping-sprite state transition is included because it changes how shared animal activity is presented.
