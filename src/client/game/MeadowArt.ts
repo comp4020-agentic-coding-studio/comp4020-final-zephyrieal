@@ -42,7 +42,7 @@ export function prepareMeadowArt(scene: Phaser.Scene) {
   const alpha=ctx.getImageData(0,0,source.width,source.height).data;
   OBJECTS.forEach(([name,maxWidth,maxHeight],i)=>{
     const row=Math.floor(i/4),col=i%4;
-    const columns=row===2?[0,318,624,922,1254]:COLUMNS;
+    const columns=row===2?[0,318,624,906,1254]:COLUMNS;
     const x0=Math.round(columns[col]/1254*source.width),x1=Math.round(columns[col+1]/1254*source.width);
     const y0=Math.round(ROWS[row]/1254*source.height),y1=Math.round(ROWS[row+1]/1254*source.height);
     let left=x1,top=y1,right=-1,bottom=-1;

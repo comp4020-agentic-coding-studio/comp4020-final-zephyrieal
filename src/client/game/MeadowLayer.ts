@@ -70,7 +70,7 @@ export function addMeadow(scene:Phaser.Scene) {
   addWaterAnimation(scene);
   // Trunks and boulders line up with SCENERY's shared solid feet-level rectangles.
   // Foliage can overhang a path; the trunk, not the crown, is the physical obstacle.
-  for(const [index,s] of SCENERY.entries())scene.add.image(s.x,s.y+10,`meadow-${s.kind}`).setOrigin(.5,1).setDepth(7).setName(`scenery:${index}`);
+  for(const [index,s] of SCENERY.entries())scene.add.image(s.x,s.y+10,`meadow-${s.kind}`).setOrigin(.5,1).setDepth(10+s.y/1000).setName(`scenery:${index}`);
   for(let n=0;n<210;n++){
     const x=80+hash(n,1)%1120,y=110+hash(n,2)%820;
     if(pathDistance(x,y)<32||SCENERY.some(s=>Math.hypot(x-s.x,y-s.y)<38))continue;

@@ -79,6 +79,8 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       const blend = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 100) / 45);
       avatar.root.x += (player.x - avatar.root.x) * blend;
       avatar.root.y += (player.y - avatar.root.y) * blend;
+      // Sort feet against trunk bases so canopies cover visitors behind trees.
+      if(room==="outdoor") avatar.root.setDepth(10+avatar.root.y/1000);
       const nearbyEarlier = visible.slice(0, visible.indexOf(player)).filter(other =>
         Math.abs(other.x - player.x) < 75 && Math.abs(other.y - player.y) < 20).length;
       avatar.label.y = -64 - nearbyEarlier * 16;
