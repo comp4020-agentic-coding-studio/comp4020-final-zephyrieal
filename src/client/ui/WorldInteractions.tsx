@@ -78,7 +78,14 @@ export function WorldInteractions() {
     window.addEventListener("keydown", keydown);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("keydown", keydown); };
   }, []);
-  return <div className="world-interactions" aria-label="Nearby actions">
+  return <div className="world-interactions" aria-label="Nearby actions"
+    onClick={event => {
+      // World action buttons hand control back after their action, including
+      // menus that remove the clicked button (feeding, harvesting, closing).
+      if ((event.target as HTMLElement).closest("button")) {
+        event.currentTarget.closest<HTMLElement>(".game-container")?.focus({ preventScroll: true });
+      }
+    }}>
     <FarmBubbles />
     <CarrotBubble />
     <FoodBubble action={nearby.find(action => action.pigId === selectedPig)} />
