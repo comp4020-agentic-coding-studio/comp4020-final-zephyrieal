@@ -16,7 +16,7 @@ function actions(): Action[] {
   const result: Action[] = [];
   if (self.gesture === "sit") {
     result.push({ key: "stand", accessibleName: "Stand up", priority: -1,
-      label: "Stand up", x: self.x, y: self.y + 25,
+      label: "Stand up", x: self.x, y: self.y + 42,
       run: () => EventBus.emit("visitor-input", { type: "visitor-gesture", gesture: "sit" }) });
   } else {
     // Only the nearest free log gets a prompt. Keep its reach tight so feeding

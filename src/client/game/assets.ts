@@ -8,6 +8,8 @@ import cloverSleeping from "../assets/sprites/guinea-pig-clover-sleeping.png";
 import mochi from "../assets/sprites/guinea-pig-mochi.png";
 import biscuit from "../assets/sprites/guinea-pig-biscuit.png";
 import clover from "../assets/sprites/guinea-pig-clover.png";
+import campfireLogFlat from "../assets/sprites/campfire-log-flat.png";
+import campfireLogs from "../assets/sprites/campfire-logs.png";
 import visitorSeated from "../assets/sprites/visitor-seated.png";
 import visitorGardener from "../assets/sprites/visitor-minimal.png";
 import tileFloor from "../assets/sprites/tile-floor.png";
@@ -60,6 +62,8 @@ export const SPRITE_ASSETS: Record<string, string> = {
   "biscuit-sleeping": biscuitSleeping, "clover-sleeping": cloverSleeping,
   "visitor-gardener": visitorGardener,
   "visitor-seated": visitorSeated,
+  "campfire-logs": campfireLogs,
+  "campfire-log-flat-sheet": campfireLogFlat,
   "furniture-sheet": hayBedFront,
   "tile-floor": tileFloor,
   "tile-wall": tileWall,

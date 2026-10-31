@@ -87,8 +87,10 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       const self = player.id === presenceState.selfId;
       const labelText = player.name ? (self ? `${player.name} (you)` : player.name) : (self ? "You" : `Visitor ${player.id.slice(0, 4)}`);
       if (avatar.label.text !== labelText) avatar.label.setText(labelText);
-      avatar.gesture.setText(player.gesture === "wave" ? "Waving hello" : player.gesture === "help" ? "Help here!" : player.gesture === "sit" ? "Sitting" : "");
-      avatar.gesture.setVisible(Boolean(player.gesture));
+      // Sitting is shown by the seated sprite itself, so it gets no caption.
+      const gestureText = player.gesture === "wave" ? "Waving hello" : player.gesture === "help" ? "Help here!" : "";
+      if (avatar.gesture.text !== gestureText) avatar.gesture.setText(gestureText);
+      avatar.gesture.setVisible(Boolean(gestureText));
       avatar.gesture.y = avatar.label.y - 20;
       const movedX = player.x - avatar.targetX;
       const movedY = player.y - avatar.targetY;
@@ -98,7 +100,7 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       }
       const seated = player.gesture === "sit";
       const facing = seated && player.seatId
-        ? (player.y > CAMPFIRE.y + 30 ? "back" : player.x < CAMPFIRE.x ? "right" : "left")
+        ? (player.seatId === "north" ? "front" : player.y > CAMPFIRE.y + 30 ? "back" : player.x < CAMPFIRE.x ? "right" : "left")
         : avatar.facing;
       const texture = seated ? "visitor-seated" : "visitor-gardener";
       if (avatar.body.texture.key !== texture || avatar.body.frame.name !== facing) {

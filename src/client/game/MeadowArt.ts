@@ -12,6 +12,29 @@ const OBJECTS = [
 ] as const;
 
 export function prepareMeadowArt(scene: Phaser.Scene) {
+  // Trim and bake each drawn perspective once at the game's pixel scale.
+  for(const [key,views] of [["campfire-logs",["rising","falling"]],["campfire-log-flat-sheet",["flat"]]] as const) {
+  const logs=scene.textures.get(key).getSourceImage() as HTMLImageElement;
+  const logScan=document.createElement("canvas");logScan.width=logs.width;logScan.height=logs.height;
+  const logContext=logScan.getContext("2d")!;logContext.drawImage(logs,0,0);
+  const logPixels=logContext.getImageData(0,0,logs.width,logs.height).data;
+  for(const [index,view] of views.entries()) {
+    let left=logs.width,top=logs.height,right=-1,bottom=-1;
+    for(let y=0;y<logs.height;y++)for(let x=Math.floor(index*logs.width/views.length);x<Math.floor((index+1)*logs.width/views.length);x++) {
+      if(logPixels[(y*logs.width+x)*4+3]<40)continue;
+      left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+    }
+    if(right<left)throw new Error(`Missing campfire log: ${view}`);
+    const width=right-left+1,height=bottom-top+1;
+    // Preserve each drawn view's proportions at the same world scale.
+    const displayWidth=view==="flat"?68:64;
+    const texture=scene.textures.createCanvas(`campfire-log-${view}`,displayWidth,Math.round(height/width*displayWidth))!;
+    texture.context.imageSmoothingEnabled=false;
+    texture.context.drawImage(logs,left,top,width,height,0,0,texture.width,texture.height);
+    texture.refresh();texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
+  scene.textures.remove(key);
+  }
   const texture=scene.textures.get("sanctuary-scenery-v2");
   const source=texture.getSourceImage() as HTMLImageElement;
   const scan=document.createElement("canvas");scan.width=source.width;scan.height=source.height;

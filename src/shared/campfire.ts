@@ -2,15 +2,17 @@ export const CAMPFIRE = { x: 640, y: 510, reach: 150 };
 export const SEATS = [
   { id: "west", x: 554, y: 492 }, { id: "east", x: 726, y: 492 },
   { id: "south-west", x: 576, y: 578 }, { id: "south-east", x: 704, y: 578 },
+  { id: "north", x: 640, y: 440 },
 ] as const;
-// Logs run across each sitter's hips, perpendicular to their view of the fire.
-// Shared layout keeps rotated artwork and solid footprints aligned.
-export const CAMPFIRE_LOGS = SEATS.map(seat => {
-  const side = seat.id === "west" || seat.id === "east";
-  return { id: seat.id, x: seat.x + (side ? (seat.id === "west" ? -8 : 8) : 0),
-    y: seat.y - (side ? 12 : 2), angle: side ? (seat.id === "west" ? -65 : 65) : 0,
-    flipX: seat.id === "south-east", width: side ? 30 : 46, height: side ? 44 : 17 };
-});
+// Perspective is drawn into the sprites, including a level front-facing log.
+// Coordinates put the log top under the sitter's hips, with feet in front.
+export const CAMPFIRE_LOGS = SEATS.map(seat => ({
+  id: seat.id,
+  x: seat.x + (seat.id === "west" ? -6 : seat.id === "east" ? 6 : 0),
+  y: seat.y + 2,
+  view: seat.id === "north" ? "flat" : seat.id === "west" || seat.id === "south-east" ? "rising" : "falling",
+  width: seat.id === "north" ? 58 : 54, height: 16,
+}));
 export const YOUTUBE_FALLBACK_MS = 5 * 60 * 1000;
 export const YOUTUBE_MAX_MS = 10 * 60 * 1000;
 export interface MusicTrack { trackId: string; title: string; videoId?: string; durationMs: number }

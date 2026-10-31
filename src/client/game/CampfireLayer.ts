@@ -6,7 +6,7 @@ export function addCampfire(scene: Phaser.Scene) {
   const {x,y}=CAMPFIRE;
   const glow=scene.add.ellipse(x,y,130,90,0xffce72,.12).setDepth(-4);
   for(const log of CAMPFIRE_LOGS){
-    scene.add.image(log.x,log.y,"meadow-log").setAngle(log.angle).setFlipX(log.flipX).setDepth(1).setName(`log:${log.id}`);
+    scene.add.image(log.x,log.y,`campfire-log-${log.view}`).setDepth(1).setName(`log:${log.id}`);
   }
   scene.add.image(x,y+18,"meadow-fire").setOrigin(.5,1).setDepth(3).setName("campfire");
   crispText(scene.add.text(x,y+30,"Campfire · stay awhile",{fontFamily:"monospace",fontSize:"9px",color:"#57432d",backgroundColor:"#f6e9ce",padding:{x:4,y:3}})).setOrigin(.5,0).setDepth(2);
