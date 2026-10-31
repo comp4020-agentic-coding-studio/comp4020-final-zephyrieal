@@ -36,7 +36,7 @@ it("rejects stale competing plants and harvests, and replays without duplicating
   expect(farmState(db).food.hay).toBe(3);
   expect(changeFarm(db, "b", "plant", 0, "hay", 3, "h", 30000).ok).toBe(false);
 });
-it("requires nearby authenticated presence, rejecting another visitor's avatar and indoor access", async () => {
+it("requires nearby authenticated presence, rejecting another visitor's avatar", async () => {
   const base = inject("baseUrl"), owner = randomUUID(), stranger = randomUUID();
   const a = await approach(base, owner, "farm");
   const before = await fetch(new URL("/api/state", base)).then(r => r.json());
@@ -48,10 +48,6 @@ it("requires nearby authenticated presence, rejecting another visitor's avatar a
     const response = await fetch(new URL("/api/farm/plant", base), { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body });
     expect(response.status).toBe(403);
   }
-  a.ws.send(JSON.stringify({ type: "visitor-input", room: "indoor", dx: 0, dy: 0 }));
-  await new Promise(resolve => setTimeout(resolve, 100));
-  const indoor = await fetch(new URL("/api/farm/plant", base), { method: "POST", headers: { "Content-Type": "application/json", cookie: cookieFor(owner), "X-Player-Id": a.id }, body });
-  expect(indoor.status).toBe(403);
   const after = await fetch(new URL("/api/state", base)).then(r => r.json());
   expect(after.farm.plots).toEqual(before.farm.plots);
 });

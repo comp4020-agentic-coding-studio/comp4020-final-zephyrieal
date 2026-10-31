@@ -1,7 +1,7 @@
 import { SEATS } from "../../shared/campfire.ts";
 import { CarrotBubble } from "./CarrotBubble.tsx";
 import { worldPosition } from "../game/cameraState.ts";
-import { isBuilding } from "../../shared/rooms.ts";
+import { buildingRoom, isBuilding } from "../../shared/rooms.ts";
 import { FarmBubbles, FoodBubble } from "./FarmBubbles.tsx";
 import { useEffect, useState } from "react";
 import { EventBus } from "../game/eventBus.ts";
@@ -48,7 +48,7 @@ function actions(): Action[] {
       label: sanctuaryState.construction[site.projectId]?.status === "completed" ? (isBuilding(site.projectId) ? "Enter · E" : "View · E") : "Build · E",
       x: position.x, y: position.y - 32,
       run: () => sanctuaryState.construction[site.projectId]?.status === "completed" && isBuilding(site.projectId)
-        ? EventBus.emit("attempt-room", `house:${site.projectId}`)
+        ? EventBus.emit("attempt-room", buildingRoom(site.projectId))
         : EventBus.emit("open-construction-panel", site.projectId),
     });
   }

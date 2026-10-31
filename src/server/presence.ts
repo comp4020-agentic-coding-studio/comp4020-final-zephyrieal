@@ -82,13 +82,8 @@ export function createPresence() {
         delete session.player.seatId;
         if (session.player.gesture) { delete session.player.gesture; session.gestureUntil = undefined; dirty = true; }
       }
-      if (session.player.room !== value.room) {
-        if (value.room.startsWith("house:") || session.player.room.startsWith("house:")) return;
-        session.player.room = value.room;
-        Object.assign(session.player, spawnIn(value.room));
-        session.player.moving = false;
-        dirty = true;
-      }
+      // Rooms change only through /api/room, which checks the building doorway.
+      if (session.player.room !== value.room) return;
       // Ignore client positions, identities, speed and time. Only direction is accepted.
       session.dx = value.dx;
       session.dy = value.dy;

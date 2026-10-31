@@ -51,11 +51,6 @@ export default function App() {
     };
   }, []);
 
-  function toggleView() {
-    const next = view === "outdoor" ? "indoor" : "outdoor";
-    EventBus.emit("attempt-room", next);
-  }
-
   return (
     <main className={`game-shell${sidebarOpen ? "" : " sidebar-collapsed"}`} aria-label="Guinea Pig Sanctuary game">
       <div className="game-viewport">
@@ -73,7 +68,6 @@ export default function App() {
           <p className="room-name">{view === "outdoor" ? "The meadow" : roomName(view)} <span>· shared world</span></p>
           <div className="toolbar">
             <CarePointsBadge value={carePoints} />
-            <button type="button" onClick={toggleView}>{view === "outdoor" ? "Go inside" : "Go back outside"}</button>
           </div>
         </header>
 
@@ -106,7 +100,7 @@ export default function App() {
           <details className="field-guide">
             <summary>Field guide & controls</summary>
             <p>A small, shared meadow for Huahua, Mochi, Biscuit and Clover. Changes to the sanctuary stay for the next visitor.</p>
-            <p>Click the meadow, then use <strong>WASD or arrow keys</strong> to walk. Your character is labelled “You”. Walk up to an animal or building and press <strong>E</strong>, or tap its nearby action.</p>
+            <p>Click the meadow, then use <strong>WASD or arrow keys</strong> to walk. Your character is labelled “You”. Walk up to an animal or building and press <strong>E</strong>, or tap its nearby action. Finished buildings, including the shared shelter, are entered on foot; walk out through the doorway to leave.</p>
             <p>Click the shared garden to plant or harvest food. Everyone can help it grow.</p>
             <p>Walk beside a free campfire log and press E to sit. Press E again or walk to stand again.</p>
             <a href="/readme/" target="_blank" rel="noreferrer">About this sanctuary ↗</a>

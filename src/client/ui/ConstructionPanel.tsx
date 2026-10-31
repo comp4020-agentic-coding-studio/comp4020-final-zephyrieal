@@ -1,4 +1,4 @@
-import { isBuilding } from "../../shared/rooms.ts";
+import { buildingRoom, isBuilding } from "../../shared/rooms.ts";
 import { presenceState } from "../game/presenceState.ts";
 import { inReach, sitePosition, BUILD_REACH } from "../../shared/interactions.ts";
 import { useEffect, useState } from "react";
@@ -82,7 +82,7 @@ export function ConstructionPanel({
 
       {finished ? (
         <><p className="construction-panel-done">{projectName} is ready! Thank you for building together!</p>
-        {isBuilding(projectId) && <button onClick={() => EventBus.emit("attempt-room", `house:${projectId}`)}>Enter {projectName}</button>}</>
+        {isBuilding(projectId) && <button onClick={() => EventBus.emit("attempt-room", buildingRoom(projectId))}>Enter {projectName}</button>}</>
       ) : (
         <>
           <p className="construction-panel-progress-label">Construction: {percentLabel}%</p>

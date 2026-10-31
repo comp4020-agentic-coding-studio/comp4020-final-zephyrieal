@@ -1,4 +1,4 @@
-import { isBuilding, isRoom, type Room } from "../shared/rooms.ts";
+import { isRoom, roomBuilding, type Room } from "../shared/rooms.ts";
 import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 import { createCarrot } from "./carrot.ts";
 import { farmState, changeFarm } from "./farm.ts";
@@ -189,14 +189,14 @@ app.post("/api/room", (req: Request, res: Response) => {
   const room = req.body?.room;
   if (!player || !isRoom(room)) { res.status(403).json({ ok: false, reason: "Reconnect before changing rooms." }); return; }
   let position: {x: number; y: number} | undefined;
-  if (room.startsWith("house:")) {
-    const id = room.slice(6);
+  if (room !== "outdoor") {
+    const id = roomBuilding(room)!;
     const site = sitePosition(id);
-    if (!isBuilding(id) || getConstructionState(db, id).status !== "completed" || !site || !inReach(player, site.x, site.y, BUILD_REACH)) {
+    if (player.room !== "outdoor" || getConstructionState(db, id).status !== "completed" || !site || !inReach(player, site.x, site.y, BUILD_REACH)) {
       res.status(403).json({ ok: false, reason: "Walk up to a completed building to enter it." }); return;
     }
-  } else if (room === "outdoor" && player.room.startsWith("house:")) {
-    const site = sitePosition(player.room.slice(6));
+  } else if (player.room !== "outdoor") {
+    const site = sitePosition(roomBuilding(player.room)!);
     if (site) position = { x: site.x, y: site.y + 40 };
   }
   movePlayerRoom(player.id, room, position);
@@ -212,7 +212,7 @@ function furnitureRoom(req: Request, res: Response, itemId?: number): string | u
   const supplied = req.get("X-Player-Id");
   const player = playerForVisitor(req.visitorId, supplied);
   const room = supplied ? player?.room : "indoor";
-  if (!room || room === "outdoor") { res.status(403).json({ ok: false, reason: "Go inside to decorate this room." }); return; }
+  if (!room || room === "outdoor") { res.status(403).json({ ok: false, reason: "Walk into a building to decorate it." }); return; }
   if (itemId !== undefined) {
     const item = db.prepare("SELECT room_id FROM furniture WHERE id = ?").get(itemId) as {room_id: string} | undefined;
     if (item && item.room_id !== room) { res.status(403).json({ ok: false, reason: "That furniture belongs in another shared room." }); return; }

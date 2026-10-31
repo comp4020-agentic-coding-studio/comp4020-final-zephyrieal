@@ -24,8 +24,8 @@ import { GAME_WIDTH, GAME_HEIGHT, HOUSE_ORIGIN_X, HOUSE_ORIGIN_Y } from "../layo
 
 // Where the wall ring's gap renders, in world pixels --- walking up to it
 // (not onto it: ROOM_BOUNDS clamps the avatar a little short of the actual
-// tile) requests the same "outdoor" transition as the "Go back outside"
-// button, which is what re-validates and places the avatar server-side.
+// tile) requests the "outdoor" transition, which the server re-validates and
+// uses to place the avatar beside the building it came from.
 const DOOR_X = HOUSE_ORIGIN_X + ENTRANCE_TILE.x * TILE_SIZE + TILE_SIZE / 2;
 const DOOR_Y = HOUSE_ORIGIN_Y + ENTRANCE_TILE.y * TILE_SIZE + TILE_SIZE / 2;
 // The indoor spawn point (336, 336, see shared/presence.ts's spawnIn) is 32px
@@ -114,7 +114,7 @@ export class IndoorScene extends Phaser.Scene {
     // Edge-triggered so standing in the doorway only requests the outdoor
     // transition once, not on every frame; leaving and re-entering the zone
     // (including after a rejected attempt) re-arms it. The server re-checks
-    // everything through the same /api/room path as "Go back outside" ---
+    // everything through /api/room ---
     // this is only an intent, never a client-decided room change.
     let nearDoor = false;
     const checkDoor = () => {

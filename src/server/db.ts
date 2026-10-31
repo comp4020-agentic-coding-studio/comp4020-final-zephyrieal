@@ -243,5 +243,8 @@ if (!(db.prepare("PRAGMA table_info(furniture)").all() as { name: string }[]).so
   db.exec("ALTER TABLE furniture ADD COLUMN room_id TEXT NOT NULL DEFAULT 'indoor'");
 }
 
+// Huahua's house became the shared shelter's entrance; its separate interior is gone.
+db.prepare("DELETE FROM furniture WHERE room_id = 'house:guinea-pig-house'").run();
+
 // Rename the existing inhabitant without changing its stable id or feeding history.
 db.prepare("UPDATE guinea_pigs SET name = 'Huahua' WHERE id = 'potato' AND name = 'Potato'").run();

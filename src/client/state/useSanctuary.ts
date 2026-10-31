@@ -451,7 +451,7 @@ export function useSanctuary() {
       // mechanism for "a reconnecting visitor gets the latest layout without
       // reloading" (scenario 6).
       () => {
-        if (sanctuaryState.room.startsWith("house:")) {
+        if (sanctuaryState.room !== "outdoor") {
           sanctuaryState.room = "outdoor";
           EventBus.emit("room-changed", "outdoor"); EventBus.emit("switch-scene", "outdoor");
         }
