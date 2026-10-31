@@ -10,7 +10,6 @@ body {
   font-family: system-ui, sans-serif;
   color: var(--ink);
   background: #fdfaf4;
-  cursor: url("./assets/sprites/cursor-arrow.png") 1 1, auto;
 }
 
 main {
