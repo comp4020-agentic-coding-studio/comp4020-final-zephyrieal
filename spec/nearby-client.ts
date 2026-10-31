@@ -41,7 +41,7 @@ export async function approachCookie(base: string, cookie: string, target: strin
       if (target === "feed") {
         const state = await globalThis.fetch(new URL("/api/state", base)).then(r => r.json());
         const size=roomDimensions(state.guineaPigMovement.room);
-        x = state.guineaPigMovement.x * size.width/100; y = state.guineaPigMovement.y * size.height/100; reach = FEED_REACH - 25;
+        x = state.guineaPigMovement.x * size.width/100; y = state.guineaPigMovement.y * size.height/100; reach = FEED_REACH - 15; // Huahua spawns in the campfire; the nearest free cell is 32px away
       } else if (target === "farm") {
         ({ x, y } = FARM_PLOTS[0]); reach = FARM_REACH - 15;
       } else {
