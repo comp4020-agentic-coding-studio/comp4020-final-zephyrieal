@@ -73,6 +73,25 @@ export class BootScene extends Phaser.Scene {
       ctx.drawImage(texture.getSourceImage() as HTMLImageElement,f.cutX,f.cutY,f.cutWidth,f.cutHeight,0,0,canvas.width,canvas.height);
       this.textures.remove(key);this.textures.addCanvas(key,canvas)!.add(frame,0,0,0,canvas.width,canvas.height);
     }
+    // Trim each seated view independently; keep pose padding out of its scale.
+    const seated = this.textures.get("visitor-seated");
+    const seatedSource = seated.getSourceImage() as HTMLImageElement;
+    const seatedCanvas = document.createElement("canvas");
+    seatedCanvas.width = seatedSource.width; seatedCanvas.height = seatedSource.height;
+    const seatedContext = seatedCanvas.getContext("2d")!;
+    seatedContext.drawImage(seatedSource, 0, 0);
+    const pixels = seatedContext.getImageData(0, 0, seatedSource.width, seatedSource.height).data;
+    for (const [index, view] of ["front", "back", "left", "right"].entries()) {
+      let left=seatedSource.width, top=seatedSource.height, right=-1, bottom=-1;
+      const col=index%2, row=Math.floor(index/2);
+      for(let y=Math.floor(row*seatedSource.height/2);y<Math.floor((row+1)*seatedSource.height/2);y++) {
+        for(let x=Math.floor(col*seatedSource.width/2);x<Math.floor((col+1)*seatedSource.width/2);x++) {
+          if(pixels[(y*seatedSource.width+x)*4+3]<32) continue;
+          left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+        }
+      }
+      if(right>=left) seated.add(view,0,left,top,right-left+1,bottom-top+1);
+    }
     const visitor = this.textures.get("visitor-gardener");
     visitor.add("front", 0, 174, 120, 359, 471);
     visitor.add("back", 0, 723, 121, 349, 470);

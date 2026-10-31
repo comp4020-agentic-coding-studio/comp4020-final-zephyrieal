@@ -1,5 +1,5 @@
 import { CONSTRUCTION_SITES, MEADOW_WIDTH, MEADOW_HEIGHT } from "./interactions.ts";
-import { CAMPFIRE, SEATS } from "./campfire.ts";
+import { CAMPFIRE, CAMPFIRE_LOGS } from "./campfire.ts";
 export interface Obstacle { id: string; x: number; y: number; width: number; height: number }
 export const SCENERY = [
   {x:120,y:150,kind:"tree"}, {x:370,y:130,kind:"pine"}, {x:760,y:130,kind:"pink"},
@@ -20,7 +20,7 @@ export const MEADOW_OBSTACLES: Obstacle[] = [
   ...SCENERY.map((s,i)=>({id:`scenery-${i}`,x:s.x-(s.kind==="rock"?19:10),y:s.y-10,width:s.kind==="rock"?38:20,height:20})),
   ...CONSTRUCTION_SITES.filter(s=>s.projectId!=="bridge").map(s=>({id:s.projectId,x:s.xPercent*MEADOW_WIDTH/100-48,y:s.yPercent*MEADOW_HEIGHT/100-52,width:96,height:49})),
   {id:"fire",x:CAMPFIRE.x-29,y:CAMPFIRE.y-18,width:58,height:36},
-  ...SEATS.map(s=>({id:s.id,x:s.x-23,y:s.y-10,width:46,height:17})),
+  ...CAMPFIRE_LOGS.map(log=>({id:log.id,x:log.x-log.width/2,y:log.y-log.height/2,width:log.width,height:log.height})),
 ];
 export function blockedMeadow(x:number,y:number,radius=8, ignore?:string) {
   return MEADOW_OBSTACLES.some(o=>o.id!==ignore && x>o.x-radius && x<o.x+o.width+radius && y>o.y-radius && y<o.y+o.height+radius);

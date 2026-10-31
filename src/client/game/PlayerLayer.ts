@@ -1,3 +1,4 @@
+import { CAMPFIRE } from "../../shared/campfire.ts";
 import { onSceneExit } from "./onSceneExit.ts";
 import Phaser from "phaser";
 import { EventBus } from "./eventBus.ts";
@@ -6,7 +7,7 @@ import type { Room } from "../../shared/presence.ts";
 
 // Recreated for each scene entry; every DOM/event listener is removed on shutdown.
 export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = () => false) {
-  const avatars = new Map<string, { root: Phaser.GameObjects.Container; body: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; gesture: Phaser.GameObjects.Text; targetX: number; targetY: number }>();
+  const avatars = new Map<string, { root: Phaser.GameObjects.Container; body: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; gesture: Phaser.GameObjects.Text; facing: string; targetX: number; targetY: number }>();
   const keys = new Set<string>();
   let touch = { dx: 0, dy: 0 };
   let lastSent = -Infinity;
@@ -71,7 +72,7 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
         }).setOrigin(0.5, 1);
         root.add([shadow, marker, body, label, gesture]);
         if (self) root.add(scene.add.ellipse(0, 2, 26, 12).setStrokeStyle(1, 0xffffff));
-        avatar = { root, body, label, gesture, targetX: player.x, targetY: player.y }; avatars.set(player.id, avatar);
+        avatar = { root, body, label, gesture, facing: "front", targetX: player.x, targetY: player.y }; avatars.set(player.id, avatar);
       }
       // Exponential interpolation avoids snapping between 20Hz server snapshots.
       const blend = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 100) / 45);
@@ -83,21 +84,30 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
       avatar.gesture.setText(player.gesture === "wave" ? "Waving hello" : player.gesture === "help" ? "Help here!" : player.gesture === "sit" ? "Sitting" : "");
       avatar.gesture.setVisible(Boolean(player.gesture));
       avatar.gesture.y = avatar.label.y - 20;
-      const height = player.gesture === "sit" ? 38 : 54;
-      avatar.body.setDisplaySize(avatar.body.frame.width / avatar.body.frame.height * height, height);
-      // Direction follows authoritative motion; retain the last view at rest.
-      // Real back/profile artwork replaces the old mirrored rectangular figure.
       const movedX = player.x - avatar.targetX;
       const movedY = player.y - avatar.targetY;
       if (player.moving && (Math.abs(movedX) > 0.01 || Math.abs(movedY) > 0.01)) {
-        const frame = Math.abs(movedY) > Math.abs(movedX)
+        avatar.facing = Math.abs(movedY) > Math.abs(movedX)
           ? (movedY < 0 ? "back" : "front") : (movedX < 0 ? "left" : "right");
-        avatar.body.setFrame(frame);
-        avatar.body.setDisplaySize(avatar.body.frame.width / avatar.body.frame.height * 54, 54);
+      }
+      const seated = player.gesture === "sit";
+      const facing = seated && player.seatId
+        ? (player.y > CAMPFIRE.y + 30 ? "back" : player.x < CAMPFIRE.x ? "right" : "left")
+        : avatar.facing;
+      const texture = seated ? "visitor-seated" : "visitor-gardener";
+      if (avatar.body.texture.key !== texture || avatar.body.frame.name !== facing) {
+        avatar.body.setTexture(texture, facing);
+        // Keep the head/body at the standing pixel scale: the lower silhouette
+        // comes from bent legs in the artwork, never shrinking the whole person.
+        if (seated) {
+          const standing = scene.textures.get("visitor-gardener").get(facing);
+          const width = standing.width / standing.height * 54;
+          avatar.body.setDisplaySize(width, avatar.body.frame.height / avatar.body.frame.width * width);
+        } else avatar.body.setDisplaySize(avatar.body.frame.width / avatar.body.frame.height * 54, 54);
       }
       avatar.targetX = player.x;
       avatar.targetY = player.y;
-      avatar.body.y = !reducedMotion && player.moving ? Math.sin(time / 75) * 1.5 : 0;
+      avatar.body.y = !seated && !reducedMotion && player.moving ? Math.sin(time / 75) * 1.5 : 0;
     }
   };
   scene.events.on(Phaser.Scenes.Events.UPDATE, update);

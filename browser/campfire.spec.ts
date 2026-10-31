@@ -14,6 +14,19 @@ test("campfire seats, shared queue, personal audio and return to exploration", a
   const id=(await presence(a)).selfId;
   const queue=async(page:typeof a,title:string)=>{await page.getByLabel("YouTube or YouTube Music link").fill("https://youtu.be/M7lc1UVf-VE");await page.getByLabel("Track name (optional)").fill(title);await page.getByRole("button",{name:"Queue YouTube track",exact:true}).click();};
   await expect.poll(async()=> (await presence(b)).players.find(p=>p.id===id)?.gesture).toBe("sit");
+  const renderedPose=async(page:typeof a,visitorId:string)=>page.evaluate(async id=>{
+    const path="/game/gameRuntime.ts";
+    const game=(await import(path)).gameRuntime.current;
+    const root=game.scene.getScene("OutdoorScene").children.getByName(`visitor:${id}`);
+    const body=root.list.find((child:any)=>child.texture?.key?.startsWith("visitor-"));
+    return {texture:body.texture.key,frame:body.frame.name,width:body.displayWidth,height:body.displayHeight};
+  },visitorId);
+  for(const page of [a,b]) {
+    await expect.poll(async()=>(await renderedPose(page,id)).texture).toBe("visitor-seated");
+    expect((await renderedPose(page,id)).frame).toBe("right");
+    expect((await renderedPose(page,id)).width).toBeGreaterThan(35);
+  }
+  await a.screenshot({path:"/tmp/seated-players.png",fullPage:true});
   await queue(a,"Ember lullaby");
   await expect(b.getByRole("status").filter({hasText:"Now playing: Ember lullaby"})).toBeVisible();
   await queue(b,"Under the stars");
@@ -37,6 +50,7 @@ test("campfire seats, shared queue, personal audio and return to exploration", a
   await late.close();
   await a.locator(".game-container").focus(); await a.keyboard.press("e");
   await expect.poll(async()=> (await presence(b)).players.find(p=>p.id===id)?.seatId).toBeUndefined();
+  await expect.poll(async()=>(await renderedPose(a,id)).texture).toBe("visitor-gardener");
   await walkTo(a,{x:480,y:200},20);
   await expect(a.getByRole("button",{name:"Sit on log 1",exact:true})).toHaveCount(0);
   await expect.poll(async()=> (await presence(b)).players.find(p=>p.id===id)?.x ?? 0).toBeGreaterThan(450);
