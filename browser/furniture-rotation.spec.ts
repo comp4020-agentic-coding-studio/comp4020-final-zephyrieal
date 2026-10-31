@@ -1,4 +1,4 @@
-import { feedHuahua } from "./walk-helper.ts";
+import { feedHuahua, enterShelter } from "./walk-helper.ts";
 import { test, expect } from "@playwright/test";
 import { inflateSync } from "node:zlib";
 import { HOUSE_ORIGIN_X, HOUSE_ORIGIN_Y, GAME_WIDTH, GAME_HEIGHT } from "../src/client/game/layout.ts";
@@ -153,7 +153,7 @@ test("rotating a placed hideout swaps in a genuinely different sprite per side",
     await page.waitForTimeout(150);
   }
 
-  await page.getByRole("button", { name: "Go inside" }).click();
+  await enterShelter(page);
   await page.waitForTimeout(400);
   await page.getByRole("button", { name: /Hideout/ }).click();
   await page.waitForTimeout(200);

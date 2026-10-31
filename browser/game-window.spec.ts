@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { presence, walkTo } from "./walk-helper.ts";
+import { presence, walkTo, enterShelter, leaveRoom } from "./walk-helper.ts";
 
 test("game fills the window, sidebar resizes the canvas and controls keep focus", async ({page}) => {
   await page.setViewportSize({width:1280,height:800});
@@ -23,10 +23,10 @@ test("game fills the window, sidebar resizes the canvas and controls keep focus"
   const before=await self();const volume=page.getByRole("slider",{name:"Music volume",exact:true});
   await volume.focus();await page.keyboard.press("ArrowRight");await page.waitForTimeout(200);
   const after=await self();expect(Math.hypot(after.x-before.x,after.y-before.y)).toBeLessThan(2);
-  await page.getByRole("button",{name:"Go inside",exact:true}).click();
+  await enterShelter(page);
   await expect(page.getByRole("region",{name:"Furnish this house"})).toBeVisible();
   expect(await page.locator("#game-sidebar .interior-furnishing").count()).toBe(1);
-  await page.getByRole("button",{name:"Go back outside",exact:true}).click();
+  await leaveRoom(page);
   await expect.poll(async()=>(await self()).room).toBe("outdoor");
   await page.setViewportSize({width:1084,height:1175});
   await expect.poll(async()=>{const l=await layout();return Math.abs(l.height-l.renderHeight);}).toBeLessThan(2);

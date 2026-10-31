@@ -1,6 +1,7 @@
 import { meadowRoute } from "../spec/meadow-route.ts";
 import { roomDimensions } from "../src/shared/interactions.ts";
 import { sitePosition } from "../src/shared/interactions.ts";
+import { roomBuilding, SHELTER_BUILDING } from "../src/shared/rooms.ts";
 import { expect, type Page } from "@playwright/test";
 export async function presence(page: Page) {
   return page.evaluate(async () => { const path = "/game/presenceState.ts"; return (await import(path)).presenceState; });
@@ -14,14 +15,8 @@ export async function walkTo(page: Page, target: string | { x: number; y: number
     const ps = await presence(page);
     const current = ps.players.find(p => p.id === ps.selfId)?.room;
     if (current !== room) {
-      if (current !== "outdoor") await page.getByRole("button", { name: "Go back outside", exact: true }).click();
-      if (room === "indoor") await page.getByRole("button", { name: "Go inside", exact: true }).click();
-      else if (room.startsWith("house:")) {
-        const project = room.slice(6);
-        const position = sitePosition(project)!;
-        await walkTo(page, position);
-        await page.getByRole("button", { name: `Enter ${project}`, exact: true }).click();
-      }
+      if (current !== "outdoor") await leaveRoom(page);
+      if (room !== "outdoor") await enterBuilding(page, roomBuilding(room)!);
       await expect.poll(async () => { const ps = await presence(page); return ps.players.find(p => p.id === ps.selfId)?.room; }).toBe(room);
     }
   }
@@ -58,4 +53,19 @@ export async function feedHuahua(page: Page) {
   const response = page.waitForResponse(r => r.url().endsWith("/api/feed") && r.request().method() === "POST");
   await page.getByRole("dialog", { name: "Feed Huahua food choices" }).getByRole("button", { name: "Hay", exact: true }).click();
   expect((await response).status()).toBe(200);
+}
+async function selfRoom(page: Page) { const ps = await presence(page); return ps.players.find(p => p.id === ps.selfId)?.room; }
+// Buildings are entered on foot: walk to the doorway, then take its Enter action.
+export async function enterBuilding(page: Page, project: string) {
+  await walkTo(page, sitePosition(project)!, 40);
+  await page.getByRole("button", { name: `Enter ${project}`, exact: true }).click();
+  await expect.poll(() => selfRoom(page)).not.toBe("outdoor");
+}
+export const enterShelter = (page: Page) => enterBuilding(page, SHELTER_BUILDING);
+// Indoor spawn sits just above the doorway, so walking down leaves the room.
+export async function leaveRoom(page: Page) {
+  await page.locator(".game-container").focus();
+  await page.keyboard.down("s");
+  try { await expect.poll(() => selfRoom(page), { timeout: 10000 }).toBe("outdoor"); }
+  finally { await page.keyboard.up("s"); }
 }

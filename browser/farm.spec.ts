@@ -1,7 +1,7 @@
 import { FARM_PLOTS } from "../src/shared/farm.ts";
 import { sitePosition } from "../src/shared/interactions.ts";
 import { test, expect } from "@playwright/test";
-import { feedHuahua, walkTo, presence } from "./walk-helper.ts";
+import { feedHuahua, walkTo, presence, enterShelter } from "./walk-helper.ts";
 
 test("one public farm supports nearby planting and another visitor's harvest", async ({ browser }) => {
   test.setTimeout(90000);
@@ -37,8 +37,8 @@ test("one public farm supports nearby planting and another visitor's harvest", a
     await a.getByRole("button", { name: "Build!" }).click();
     expect((await buildResponse).status()).toBe(200);
     await expect(b.locator("html")).toHaveAttribute("data-construction-dust", "guinea-pig-house");
-    await a.getByRole("button", { name: "Go inside", exact: true }).click();
-    await expect(a.getByRole("dialog", { name: "Build Huahua's house" })).toHaveCount(0);
+    await enterShelter(a);
+    await expect(a.getByRole("dialog", { name: "Build The shared shelter" })).toHaveCount(0);
     const id = (await presence(a)).selfId;
     const denied = await a.request.post("/api/feed", { headers: { "X-Player-Id": id }, data: { requestId: crypto.randomUUID() } });
     expect(denied.status()).toBe(403);

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { enterShelter, leaveRoom } from "./walk-helper.ts";
 
 async function state(page: Page) {
   return page.evaluate(async () => {
@@ -41,14 +42,14 @@ test("two visitors see movement, switch rooms, reconnect and leave without ghost
 
     // Repeat entry to exercise scene cleanup and input listener lifetime.
     for (let i = 0; i < 2; i++) {
-      await a.getByRole("button", { name: "Go inside" }).click();
+      await enterShelter(a);
       await expect.poll(async () => (await state(b)).players.find(p => p.id === selfId).room).toBe("indoor");
       await expect(b.getByRole("status")).toContainText("Other visitors will appear");
-      await a.getByRole("button", { name: "Go back outside" }).click();
+      await leaveRoom(a);
       await expect(b.getByRole("status")).toContainText("1 other visitor");
     }
-    await a.getByRole("button", { name: "Go inside" }).click();
-    await b.getByRole("button", { name: "Go inside" }).click();
+    await enterShelter(a);
+    await enterShelter(b);
     await expect(a.getByRole("status")).toContainText("1 other visitor");
     await a.locator(".game-container").focus();
     await a.keyboard.down("ArrowLeft");

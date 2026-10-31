@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { enterShelter, leaveRoom } from "./walk-helper.ts";
 
-// Regression for a bug found manually: "Go inside" then "Go back outside"
+// Regression for a bug found manually: entering the shelter then leaving it
 // crashed OutdoorScene.create() on the very first round trip (the shared
 // house's construction site sprite never came back, and the meadow lost its
 // click-to-plant/keyboard handlers for the rest of the session). Phaser
@@ -21,18 +22,18 @@ test("the construction site survives going inside and back outside", async ({ pa
   await page.waitForSelector("canvas");
   await page.waitForTimeout(1000); // let BootScene finish loading and OutdoorScene render
 
-  await page.getByRole("button", { name: "Go inside" }).click();
+  await enterShelter(page);
   await page.waitForTimeout(300);
-  await page.getByRole("button", { name: "Go back outside" }).click();
+  await leaveRoom(page);
   await page.waitForTimeout(300);
 
   expect(errors, "OutdoorScene.create() threw on the round trip").toEqual([]);
 
   // A second round trip, since a fix that only survives one cycle (e.g.
   // re-introducing a fresh stale reference) would still be wrong.
-  await page.getByRole("button", { name: "Go inside" }).click();
+  await enterShelter(page);
   await page.waitForTimeout(300);
-  await page.getByRole("button", { name: "Go back outside" }).click();
+  await leaveRoom(page);
   await page.waitForTimeout(300);
 
   expect(errors, "OutdoorScene.create() threw on the second round trip").toEqual([]);
@@ -42,9 +43,9 @@ test("the public farm remains a single bed after repeated room changes", async (
   await page.goto("/");
   await expect(page.locator("canvas")).toBeVisible();
   for (let i = 0; i < 3; i++) {
-    await page.getByRole("button", { name: "Go inside" }).click();
+    await enterShelter(page);
     await expect(page.getByRole("button", { name: "Shared farm", exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: "Go back outside" }).click();
+    await leaveRoom(page);
     await expect(page.getByRole("button", { name: "Shared farm", exact: true })).toHaveCount(1);
   }
   await expect(page.getByRole("button", { name: "Plant a flower" })).toHaveCount(0);
