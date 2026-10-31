@@ -93,6 +93,9 @@ export function WorldInteractions() {
       className="world-bubble" aria-label={action.accessibleName ?? (action.pigId ? `Feed ${action.name}` : `${action.label.startsWith("Enter") ? "Enter" : "Build"} ${action.key}`)}
       style={worldPosition(action.x, action.y)}
       onPointerDown={event => event.stopPropagation()}
+      // Phaser listens for mouse/touch on window, so the sprite underneath would also react.
+      onMouseDown={event => event.stopPropagation()}
+      onTouchStart={event => event.stopPropagation()}
       onClick={() => actions().find(current => current.key === action.key)?.run()}>{action.label.replace(" · E", "")}{index === 0 ? " · E" : ""}</button>)}
   </div>;
 }
