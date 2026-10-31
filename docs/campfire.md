@@ -1,16 +1,16 @@
 # Campfire gathering area
 
-The central clearing at (280, 290) reuses the meadow, existing camera, authoritative visitor presence, sitting gesture, WebSocket connection and four named inhabitants. The garden, carrot, buildings and room controls retain their interactions. There was no text-chat system in the inspected game; existing gestures remain available. Seats use nearby E prompts; the music queue lives in the sidebar. Typing or focusing controls does not move the avatar.
+The central clearing at (640, 510) reuses the meadow, existing camera, authoritative visitor presence, sitting gesture, WebSocket connection and four named inhabitants. The garden, carrot, buildings and room controls retain their interactions. There was no text-chat system in the inspected game; existing gestures remain available. Seats use nearby E prompts; the music queue lives in the sidebar. Typing or focusing controls does not move the avatar.
 
 ## Playing
 
-Run `pnpm dev` and open http://localhost:5173 in separate browser windows. Walk to the central fire. Walk beside an available log and press E (or tap the in-world Sit prompt). Four seats are exclusive while occupied. Walking, pressing E again, a different gesture, changing rooms or disconnecting releases the seat. Other visitors see the seated avatar and Sitting label.
+Run `pnpm dev` and open http://localhost:5173 in separate browser windows. Walk to the central fire. Walk beside an available log and press E (or tap the in-world Sit prompt). Five seats are exclusive while occupied. Walking, pressing E again, a different gesture, changing rooms or disconnecting releases the seat. Other visitors see the seated sprite facing the fire.
 
 Queue YouTube or YouTube Music video links from the sidebar. The current track and upcoming tracks are shared through the existing server. Each signed visitor identity may have one waiting track, including across tabs. The playing track does not count as pending. Enable sound loads the visible YouTube player; mute and volume affect only that browser. Premade synthesised music has been removed. Queues reset on server restart.
 
 Guinea pigs keep their existing server-owned wandering, now sometimes choosing points near the fire and visibly resting between walks without feeding. Segment clearance checks avoid the fire and log footprints, with bounded retries. The wider map retains its existing decorative scenery and movement model.
 
-The glow and slow flame pulse use Phaser drawing in the existing palette. Reduced-motion visitors get a static flame. Seat state is conveyed by text as well as avatar height, and all campfire panel controls are keyboard accessible.
+The logs are perspective sprites (`campfire-logs.png`, plus `campfire-log-flat.png` for the north seat). The fire flickers through eight frames generated from its sprite, with rising embers and a pulsing glow. Reduced-motion visitors get a static flame and no pulse. Seat state is shown by the seated sprite and by the in-world Sit/Stand prompt text, and all campfire panel controls are keyboard accessible.
 
 ## Checks
 

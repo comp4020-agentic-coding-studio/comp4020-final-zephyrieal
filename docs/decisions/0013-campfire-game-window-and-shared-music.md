@@ -1,6 +1,6 @@
 # 0013 — Campfire gathering, a full-window game and shared YouTube music
 
-Date: 2026-10-30
+Date: 2026-10-30 (revised 2026-10-31: campfire position, fifth seat, seated sprite, animated fire, distance-faded music)
 
 Status: Accepted (shared YouTube playback remains a labelled prototype)
 
@@ -16,9 +16,9 @@ The initial page placed game controls and explanatory content around a bounded c
 
 ### Reuse the central meadow and authoritative presence
 
-Place the campfire at (280, 290) in the existing meadow, with four fixed log seats around it. No map expansion or separate social room is required. Keep the garden, construction, carrot and room routes available. Draw the logs, fire, glow and slow flame pulse with Phaser in the existing palette; reduced-motion preferences disable the pulse.
+Place the campfire at the centre of the meadow, (640, 510) since the 2026-10-31 meadow expansion, with five fixed log seats around it (originally four; a forward-facing north log was added on 2026-10-31). Keep the garden, construction, carrot and room routes available. The logs are perspective pixel-art sprites with the angle drawn in; the fire is an eight-frame flicker generated from its sprite, with a few rising embers and a pulsing glow. Reduced-motion preferences get a static flame and no glow pulse.
 
-Seat occupation belongs to the server and uses existing presence messages. A nearby visitor requests a seat; the server checks proximity and availability, so two avatars cannot occupy the same seat. Other visitors see the seated avatar and its Sitting label. Movement, standing, another gesture, room changes and disconnect release the seat. Seats and poses are temporary presence, not persistent contributions or property.
+Seat occupation belongs to the server and uses existing presence messages. A nearby visitor requests a seat; the server checks proximity and availability, so two avatars cannot occupy the same seat. Other visitors see the visitor's seated sprite, turned to face the fire. The seated pose replaces the earlier "Sitting" caption and shrunken standing figure. Movement, standing, another gesture, room changes and disconnect release the seat. Seats and poses are temporary presence, not persistent contributions or property.
 
 Use the nearest free seat's world prompt within 40 world units. E sits; E again or movement stands. Pointer and touch users can activate the same prompt. Standing takes priority over seating, and seating over nearby feeding/building actions; only the selected action advertises E. Keyboard interaction requires focus on the game container, so typing in the sidebar does not operate the world. Remove the sidebar seat buttons and the standalone Sit gesture button; retain Wave and Help here. The existing game has no text chat, and this change does not introduce one.
 

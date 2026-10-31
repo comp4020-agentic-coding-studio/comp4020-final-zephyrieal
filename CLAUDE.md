@@ -102,5 +102,11 @@ Wave and help gestures are temporary presence, not permanent contributions. Sitt
 ## Furniture and animal behaviour
 Furniture use is chosen by the server, never commanded by visitors. Only the furnishing being used may be traversed; walls and other furnishings remain obstacles. Moving, rotating or storing it cancels use safely. Broadcast activity with animal movement and include it in reconnect snapshots. Activity is temporary; shared furniture remains persistent.
 
+## Visitor names
+Display names are optional and never a login: always allow skipping, store them server-side against the signed anonymous visitor cookie, and only ever let a visitor set their own name (never a client-supplied id). Sanitise and length-limit on the server. A name is a label, not a profile --- no avatars, bios, follower counts or name-based ranking.
+
+## Campfire and radio
+Seats are temporary presence owned by the server: it checks proximity and that the seat is free, and releases it on movement, standing, room change or disconnect. The music queue is server-owned and ordered; enforce one waiting track per signed visitor identity, not per tab, and verify ownership and proximity for skips. Mute, volume and distance fade are local to each listener and never sent to the server. Only accept HTTPS links from recognised YouTube hosts; no downloading or audio extraction.
+
 ## Cooperative carrot
 Count distinct signed visitor identities, not browser tabs, for the giant carrot. Both must remain connected and nearby in the meadow throughout the pull; prune expired or absent participants before awarding progress. Reset unfinished progress when fewer than two remain. The server owns time, participants, round and reward. Commit each harvest, regrowth deadline and three public carrot portions in one database transaction. Reject stale rounds; no personal points or exclusive harvest rights. Carrots cannot be planted in the ordinary solo garden.

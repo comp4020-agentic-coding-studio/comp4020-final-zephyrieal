@@ -22,16 +22,22 @@ There are no individually owned guinea pigs, private houses, XP, leaderboards or
 
 ## What's here now
 
-The sanctuary has four guinea pigs: Huahua, Mochi, Biscuit and Clover. Each wanders independently and can be fed nearby. Visitors can feed her — the sanctuary remembers how many times and when, for whoever opens the page next — and grow food in one public garden bed. Walk nearby and click the soil to choose hay, lettuce, bell peppers or cucumbers. Anyone can harvest a mature crop, including crops planted by another visitor.
+The sanctuary has four guinea pigs: Huahua, Mochi, Biscuit and Clover. Each wanders independently and can be fed nearby — the sanctuary remembers how many times and when, for whoever opens the page next. Visitors can also grow food in one public garden bed. Walk nearby and click the soil to choose hay, lettuce, bell peppers or cucumbers. Anyone can harvest a mature crop, including crops planted by another visitor.
 
 At the top of the meadow is the shared shelter, a little red-roofed house you walk into: a small, shared room where everyone who visits earns their own Care Points by feeding the guinea pigs, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
 
 ## Walking together
 
+On a first visit you can choose a display name (up to 20 characters) or skip
+it. There's no sign-in: the name is stored on the server against this browser's
+anonymous visitor cookie. The name button in the sidebar (**Choose a name** or
+**_your name_ · change**) updates it for everyone live. Unnamed visitors keep a short `Visitor xxxx` label.
+
 Every connected browser tab now has a visitor character. Focus the game with a
 click or Tab, then use **WASD or the arrow keys** to walk. The direction buttons
 below the meadow also work with a mouse, touch, or keyboard. Your character is
-labelled **You**; other visitors have coloured markers and short visitor labels.
+labelled with your name and **(you)**, or just **You**; other visitors have
+coloured markers and their names.
 The gardener character has soft, rounded artwork and turns to face all four
 walking directions.
 
@@ -39,8 +45,8 @@ Visitors in the same meadow or house see each other's movements live. There
 is no button for changing rooms: walk up to the shared shelter or another
 finished building and choose **Enter** (or press E), and walk out through the
 doorway to leave. Furniture placement keeps its
-existing controls and pauses walking while a piece is selected. Huahua still
-wanders independently.
+existing controls and pauses walking while a piece is selected. The guinea pigs
+still wander independently.
 
 Presence lasts only while connected. Departing visitors disappear; reconnecting
 visitors rejoin automatically. To try it locally, run `pnpm dev` and open
@@ -61,7 +67,7 @@ Other parts need to be judged by people. During crits I want to watch whether vi
 
 ## Shared garden and nearby interactions
 
-Walk up to Huahua to reveal Feed (or press E), then choose a snack. Walk up to a building to reveal Build. The server checks the position of your authenticated avatar for feeding, building, planting and harvesting.
+Walk up to a guinea pig to reveal Feed (or press E), then choose a snack. Walk up to a building to reveal Build. The server checks the position of your authenticated avatar for feeding, building, planting and harvesting.
 
 The single garden bed belongs to everyone. Click it while nearby to plant one crop across the whole bed. Hay grows in 30 seconds, lettuce and cucumbers in 45 seconds, and bell peppers in 60 seconds. Harvesting adds three portions to a public food supply. Basic hay is always available for feeding while the garden grows. Flower planting has been removed.
 
@@ -72,7 +78,12 @@ Feeding rewards are chosen by the server: hay earns 10 Care Points, lettuce 15, 
 Walking is the only way indoors. Walk up to the shared shelter, toolshed, greenhouse or great hall once it is finished and choose Enter (or press E); walk down through the doorway to leave, and you come out beside the same building. The server checks that you are standing at the doorway, so a room can't be entered from across the meadow. The shared shelter keeps all the furniture visitors have already placed. Each other building has its own shared interior, visitors, furniture and storage. The bridge remains outdoors. Interiors currently share a floor plan; their contents and visitors are independent.
 
 ## Acknowledging other visitors
-Use **Wave**, **Sit** and **Help here** below the meadow. Nearby visitors in the same room see a labelled gesture above your character. Wave and help last three seconds; sitting lasts until you stand, walk, change rooms or disconnect. Gestures are temporary presence and do not spend Care Points.
+Use **Wave** and **Help here** below the meadow. Nearby visitors in the same room see a labelled gesture above your character. Both last three seconds. Gestures are temporary presence and do not spend Care Points. Sitting now happens on the campfire logs (below).
+
+## The campfire
+In the middle of the meadow is a campfire ringed by five logs. Walk beside a free log and choose **Sit** (or press E); you sit down facing the fire, and everyone else sees you seated. Each log holds one visitor at a time. Pressing E again, walking, changing rooms or disconnecting stands you up. The guinea pigs sometimes wander over and sleep near the fire.
+
+The campfire radio is a shared YouTube queue. Near the fire, paste a YouTube or YouTube Music video link in the sidebar; every visitor hears the same queue in order, and each visitor can have one track waiting. **Enable sound** loads the player in your own browser. Mute and volume are yours alone. The music is loudest at the fire and fades to a quiet background as you walk away, and it keeps playing when the radio controls are collapsed. The queue resets when the server restarts. See [`docs/campfire.md`](docs/campfire.md) for details and limits.
 
 ## Furniture the inhabitants use
 During indoor visits, guinea pigs sometimes approach a reachable hay bed to rest, a hideout to hide, or a tunnel to investigate. Their activity is shared live and labelled beside them. They leave again on their own; moving or storing the furniture interrupts its use safely. The furniture persists; these brief behaviours do not.
