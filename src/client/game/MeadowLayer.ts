@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { addWaterAnimation, shoreDistance } from "./WorldAmbience.ts";
 import { MEADOW_WIDTH, MEADOW_HEIGHT, CONSTRUCTION_SITES, sitePosition } from "../../shared/interactions.ts";
 import { SCENERY } from "../../shared/meadow.ts";
 import { CAMPFIRE } from "../../shared/campfire.ts";
@@ -39,8 +40,8 @@ export function addMeadow(scene:Phaser.Scene) {
       for(let py=0;py<height;py+=2)for(let px=0;px<width;px+=2){
         const x=cx+px,y=cy+py;
         const left=42+Math.sin(y/23)*4+Math.sin(y/71)*4,right=1238+Math.sin(y/31)*5;
-        const top=72+Math.sin(x/36)*5,bottom=980+Math.sin(x/27)*5;
-        const shore=Math.min(x-left,right-x,y-top,bottom-y);
+        const bottom=980+Math.sin(x/27)*5;
+        const shore=shoreDistance(x,y);
         const water=shore<0;
         const cliff=!water&&(x-left<13||right-x<13||bottom-y<22);
         const material=water?2:cliff?3:0;
@@ -66,6 +67,7 @@ export function addMeadow(scene:Phaser.Scene) {
     }
     scene.add.image(cx,cy,key).setOrigin(0).setDepth(-10);
   }
+  addWaterAnimation(scene);
   // Trunks and boulders line up with SCENERY's shared solid feet-level rectangles.
   // Foliage can overhang a path; the trunk, not the crown, is the physical obstacle.
   for(const [index,s] of SCENERY.entries())scene.add.image(s.x,s.y+10,`meadow-${s.kind}`).setOrigin(.5,1).setDepth(7).setName(`scenery:${index}`);
