@@ -24,7 +24,7 @@ There are no individually owned guinea pigs, private houses, XP, leaderboards or
 
 The sanctuary has four guinea pigs: Huahua, Mochi, Biscuit and Clover. Each wanders independently and can be fed nearby. Visitors can feed her — the sanctuary remembers how many times and when, for whoever opens the page next — and grow food in one public garden bed. Walk nearby and click the soil to choose hay, lettuce, bell peppers or cucumbers. Anyone can harvest a mature crop, including crops planted by another visitor.
 
-Just behind the meadow is Huahua's house: a small, shared room where everyone who visits earns their own Care Points by feeding her, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
+At the top of the meadow is the shared shelter, a little red-roofed house you walk into: a small, shared room where everyone who visits earns their own Care Points by feeding the guinea pigs, and spends them on furniture — a hay bed, a tunnel, a hideout — that goes into the house for everyone, not just the visitor who paid for it. Furniture one person places appears for every other visitor connected at the time, in real time, with no page refresh needed. Nothing is undone: once a hay bed is in the house, it's there for the next visitor too.
 
 ## Walking together
 
@@ -35,8 +35,10 @@ labelled **You**; other visitors have coloured markers and short visitor labels.
 The gardener character has soft, rounded artwork and turns to face all four
 walking directions.
 
-Visitors in the same meadow or house see each other's movements live. Use
-**Go inside / Go back outside** to change rooms. Furniture placement keeps its
+Visitors in the same meadow or house see each other's movements live. There
+is no button for changing rooms: walk up to the shared shelter or another
+finished building and choose **Enter** (or press E), and walk out through the
+doorway to leave. Furniture placement keeps its
 existing controls and pauses walking while a piece is selected. Huahua still
 wanders independently.
 
@@ -67,7 +69,7 @@ Feeding rewards are chosen by the server: hay earns 10 Care Points, lettuce 15, 
 
 ## Entering completed buildings
 
-Walk up to a completed house, toolshed, greenhouse or great hall and choose Enter (or press E). Each has its own shared interior, visitors, furniture and storage. Leave to return beside the same building. The bridge remains outdoors. The original shared shelter and its existing furniture remain available through Go inside. Interiors currently share a floor plan; their contents and visitors are independent.
+Walking is the only way indoors. Walk up to the shared shelter, toolshed, greenhouse or great hall once it is finished and choose Enter (or press E); walk down through the doorway to leave, and you come out beside the same building. The server checks that you are standing at the doorway, so a room can't be entered from across the meadow. The shared shelter keeps all the furniture visitors have already placed. Each other building has its own shared interior, visitors, furniture and storage. The bridge remains outdoors. Interiors currently share a floor plan; their contents and visitors are independent.
 
 ## Acknowledging other visitors
 Use **Wave**, **Sit** and **Help here** below the meadow. Nearby visitors in the same room see a labelled gesture above your character. Wave and help last three seconds; sitting lasts until you stand, walk, change rooms or disconnect. Gestures are temporary presence and do not spend Care Points.
