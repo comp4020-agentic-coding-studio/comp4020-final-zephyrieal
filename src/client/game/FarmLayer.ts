@@ -1,3 +1,4 @@
+import { crispText } from "./crispText.ts";
 import { onSceneExit } from "./onSceneExit.ts";
 import Phaser from "phaser";
 import { FARM_PLOTS } from "../../shared/farm.ts";
@@ -6,7 +7,7 @@ import { sanctuaryState } from "./sanctuaryState.ts";
 export function addFarm(scene: Phaser.Scene) {
   const plots=FARM_PLOTS.map(plot=>{
     scene.add.image(plot.x,plot.y,"meadow-garden-bed").setDisplaySize(110,76).setName(`farm-bed:${plot.id}`).setDepth(0);
-    scene.add.text(plot.x,plot.y-48,"HUAHUA’S GARDEN",{fontFamily:"monospace",fontSize:"9px",color:"#fff2d5",backgroundColor:"#76543a",padding:{x:5,y:3}}).setOrigin(.5).setDepth(2);
+    crispText(scene.add.text(plot.x,plot.y-48,"HUAHUA’S GARDEN",{fontFamily:"monospace",fontSize:"9px",color:"#fff2d5",backgroundColor:"#76543a",padding:{x:5,y:3}})).setOrigin(.5).setDepth(2);
     const plants=Array.from({length:12},(_,i)=>scene.add.image(plot.x-33+(i%4)*22,plot.y-9+Math.floor(i/4)*14,"meadow-crop-sprout").setOrigin(.5,1).setDepth(1).setVisible(false));
     const ready=scene.add.graphics().setDepth(2).setVisible(false);
     ready.lineStyle(2,0xf4d98b).strokeRect(plot.x-55,plot.y-38,110,76);

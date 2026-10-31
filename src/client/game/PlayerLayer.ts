@@ -1,3 +1,4 @@
+import { crispText } from "./crispText.ts";
 import { CAMPFIRE } from "../../shared/campfire.ts";
 import { onSceneExit } from "./onSceneExit.ts";
 import Phaser from "phaser";
@@ -62,14 +63,14 @@ export function addPlayers(scene: Phaser.Scene, room: Room, controlsBlocked = ()
         const marker = scene.add.ellipse(0, 2, 32, 12).setStrokeStyle(2, player.color);
         const body = scene.add.image(0, 0, "visitor-gardener", "front").setOrigin(0.5, 1);
         body.setDisplaySize(body.frame.width / body.frame.height * 54, 54);
-        const label = scene.add.text(0, -64, "", {
+        const label = crispText(scene.add.text(0, -64, "", {
           fontFamily: "monospace", fontSize: "10px", color: "#253a28", backgroundColor: "#fffaf0",
           padding: { x: 4, y: 2 },
-        }).setOrigin(0.5, 1);
-        const gesture = scene.add.text(0, -84, "", {
+        })).setOrigin(0.5, 1);
+        const gesture = crispText(scene.add.text(0, -84, "", {
           fontFamily: "sans-serif", fontSize: "12px", color: "#253a28", backgroundColor: "#fffaf0",
           padding: { x: 5, y: 3 },
-        }).setOrigin(0.5, 1);
+        })).setOrigin(0.5, 1);
         root.add([shadow, marker, body, label, gesture]);
         if (self) root.add(scene.add.ellipse(0, 2, 26, 12).setStrokeStyle(1, 0xffffff));
         avatar = { root, body, label, gesture, facing: "front", targetX: player.x, targetY: player.y }; avatars.set(player.id, avatar);

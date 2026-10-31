@@ -1,3 +1,4 @@
+import { crispText } from "../crispText.ts";
 import { addGuineaPigs } from "../GuineaPigLayer.ts";
 import { configureCamera } from "../FollowCamera.ts";
 import { roomName } from "../../../shared/rooms.ts";
@@ -105,10 +106,10 @@ export class IndoorScene extends Phaser.Scene {
     addPlayers(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room, () => Boolean(this.activeOp));
     this.drawFloorAndWalls();
     addGuineaPigs(this, sanctuaryState.room === "outdoor" ? "indoor" : sanctuaryState.room);
-    this.add.text(320, 100, roomName(sanctuaryState.room), { fontFamily: "monospace", fontSize: "16px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 10, y: 6 } }).setOrigin(0.5);
-    this.add.text(DOOR_X, DOOR_Y + 12, "Walk through to go outside", {
+    crispText(this.add.text(320, 100, roomName(sanctuaryState.room), { fontFamily: "monospace", fontSize: "16px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 10, y: 6 } })).setOrigin(0.5);
+    crispText(this.add.text(DOOR_X, DOOR_Y + 12, "Walk through to go outside", {
       fontFamily: "monospace", fontSize: "10px", color: "#3d4934", backgroundColor: "#fff6df", padding: { x: 4, y: 2 },
-    }).setOrigin(0.5, 0);
+    })).setOrigin(0.5, 0);
     this.redrawFurniture();
 
     // Edge-triggered so standing in the doorway only requests the outdoor

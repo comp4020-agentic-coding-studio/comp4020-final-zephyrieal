@@ -1,3 +1,4 @@
+import { crispText } from "./crispText.ts";
 import type { Room } from "../../shared/rooms.ts";
 import { roomDimensions } from "../../shared/interactions.ts";
 import { onSceneExit } from "./onSceneExit.ts";
@@ -19,7 +20,7 @@ export function addGuineaPigs(scene: Phaser.Scene, room: Room = "outdoor") {
         const body = scene.add.image(0, 0, pig.id === "potato" ? "guinea-pig" : pig.id, pig.id === "potato" ? "potato" : "pig").setDepth(3);
         const size = room === "outdoor" ? 38 : 28;
         body.setDisplaySize(size, size * body.frame.height / body.frame.width);
-        const label = scene.add.text(0, 0, pig.name, { fontFamily: "monospace", fontSize: "9px", color: "#37442e", backgroundColor: "#fff6df", padding: { x: 3, y: 1 } }).setOrigin(0.5, 0).setDepth(4);
+        const label = crispText(scene.add.text(0, 0, pig.name, { fontFamily: "monospace", fontSize: "9px", color: "#37442e", backgroundColor: "#fff6df", padding: { x: 3, y: 1 } })).setOrigin(0.5, 0).setDepth(4);
         body.setName(`guinea-pig:${pig.id}`);
         sprite = { body, label }; sprites.set(pig.id, sprite);
       }
