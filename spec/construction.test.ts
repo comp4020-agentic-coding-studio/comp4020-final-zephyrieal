@@ -131,6 +131,8 @@ it(
     const a = randomUUID();
     const b = randomUUID();
 
+    // Walk B over first so its walk doesn't outlast A's 5s active window.
+    await approach(baseUrl, b, DEFAULT_PROJECT);
     const baseline = (await stateAs(a)).construction.activeBuilders;
     const respA1 = await contribute(a);
     expect(respA1.body.activeBuilders).toBe(baseline + 1);
@@ -151,7 +153,7 @@ it(
     expect(respA2.body.activeBuilders).toBe(1); // B (and the old baseline) aged out
     expect(respA2.body.unitsAwarded).toBe(100);
   },
-  15000, // exceeds Vitest's default 5000ms per-test timeout, which the 5.1s wait alone would hit
+  30000, // the 5.1s wait plus walking two avatars across the meadow
 );
 
 it("broadcasts progress to another connected visitor", async () => {
@@ -217,7 +219,7 @@ it("tracks active builders and progress independently per project", async () => 
   expect(houseAfter.construction.progressUnits).toBe(
     houseBefore.construction.progressUnits + houseResult.body.unitsAwarded,
   );
-});
+}, 60000); // avatars walk between buildings on opposite sides of the meadow
 
 it(
   "completes exactly once and pays the one-time cooperative reward to every eligible visitor",
