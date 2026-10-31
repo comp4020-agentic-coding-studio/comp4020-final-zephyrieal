@@ -36,7 +36,7 @@ test("expanded meadow: six visitors, far travel, camera, seats, activities and f
   await walkTo(page,sitePosition('toolshed')!,60);await expect(page.getByRole('button',{name:'Build toolshed',exact:true})).toBeVisible();
   await walkTo(page,{x:640,y:640},25);
   const profile=await page.evaluate(async()=>{const samples:number[]=[];let last=performance.now();await new Promise<void>(resolve=>{const sample=(t:number)=>{samples.push(t-last);last=t;if(samples.length<120)requestAnimationFrame(sample);else resolve();};requestAnimationFrame(sample);});samples.sort((a,b)=>a-b);return{median:samples[60],p95:samples[114],over33:samples.filter(t=>t>33.4).length};});
-  const metrics=await inspect();expect(metrics.textureBytes).toBeLessThan(14*1024*1024);expect(metrics.largest).toBeLessThanOrEqual(1254);
+  const metrics=await inspect();expect(metrics.textureBytes).toBeLessThan(18*1024*1024);expect(metrics.largest).toBeLessThanOrEqual(1254);
   console.log('MEADOW_PROFILE',JSON.stringify({...profile,...metrics,players:(await presence(page)).players.length}));
   await page.screenshot({path:'/tmp/sanctuary-pass/playable.png'});
   await page.setViewportSize({width:390,height:844});await expect(page.getByRole('button',{name:/Campfire Radio/})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);

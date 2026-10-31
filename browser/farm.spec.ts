@@ -1,3 +1,5 @@
+import { FARM_PLOTS } from "../src/shared/farm.ts";
+import { sitePosition } from "../src/shared/interactions.ts";
 import { test, expect } from "@playwright/test";
 import { feedHuahua, walkTo, presence } from "./walk-helper.ts";
 
@@ -11,17 +13,18 @@ test("one public farm supports nearby planting and another visitor's harvest", a
     await a.goto("/"); await b.goto("/");
     await expect(a.getByRole("button", { name: "Shared farm", exact: true })).toHaveCount(1);
     await expect(a.getByRole("button", { name: "Plant a flower" })).toHaveCount(0);
-    await walkTo(a, { x: 276, y: 206 }, 60);
+    await walkTo(a, FARM_PLOTS[0], 60);
     await a.getByRole("button", { name: "Shared farm", exact: true }).click();
     const menu = a.getByRole("dialog", { name: "Shared farm options" });
     for (const name of ["Hay", "Lettuce", "Bell peppers", "Cucumbers"]) await expect(menu.getByRole("button", { name, exact: true })).toBeVisible();
     await menu.getByRole("button", { name: "Hay", exact: true }).click();
     await expect(menu).toContainText("Growing hay");
     await expect.poll(async () => (await b.request.get("/api/state").then(r => r.json())).farm.plots[0].crop).toBe("hay");
-    await a.screenshot({ path: "/tmp/sanctuary-public-farm.png", fullPage: true });
+    await expect.poll(()=>a.evaluate(async()=>{const path="/game/gameRuntime.ts";const scene=(await import(path)).gameRuntime.current.scene.getScene("OutdoorScene");return scene.children.list.filter((o:any)=>o.name?.startsWith("farm-bed:")).length;})).toBe(1);
+    await a.screenshot({ path: "/tmp/sanctuary-art/garden-planted.png", fullPage: true });
     await a.getByRole("button", { name: "Close farm" }).click();
     await feedHuahua(a);
-    await walkTo(a, { x: 499.2, y: 112.64 }, 55);
+    await walkTo(a, sitePosition("guinea-pig-house")!, 55);
     await a.getByRole("button", { name: "Build guinea-pig-house", exact: true }).click();
     await b.evaluate(async () => {
       const path = "/game/eventBus.ts";
@@ -39,7 +42,7 @@ test("one public farm supports nearby planting and another visitor's harvest", a
     const id = (await presence(a)).selfId;
     const denied = await a.request.post("/api/feed", { headers: { "X-Player-Id": id }, data: { requestId: crypto.randomUUID() } });
     expect(denied.status()).toBe(403);
-    await walkTo(b, { x: 276, y: 206 }, 60);
+    await walkTo(b, FARM_PLOTS[0], 60);
     await b.getByRole("button", { name: "Shared farm", exact: true }).click();
     const harvest = b.getByRole("button", { name: "Harvest for Huahua", exact: true });
     await expect(harvest).toBeVisible({ timeout: 35000 });

@@ -1,3 +1,6 @@
+import sanctuaryGarden from "../assets/sprites/sanctuary-garden-v2.png";
+import sanctuaryScenery from "../assets/sprites/sanctuary-scenery-v2.png";
+import sanctuaryGround from "../assets/sprites/sanctuary-ground-v2.png";
 import huahuaSleeping from "../assets/sprites/guinea-pig-huahua-sleeping.png";
 import mochiSleeping from "../assets/sprites/guinea-pig-mochi-sleeping.png";
 import biscuitSleeping from "../assets/sprites/guinea-pig-biscuit-sleeping.png";
@@ -48,6 +51,9 @@ import greatHall4 from "../assets/sprites/great-hall-4.png";
 // replaces the crit-8/9 procedural Graphics placeholders. Vite imports each
 // PNG as a hashed URL, so BootScene.preload() just needs key -> url.
 export const SPRITE_ASSETS: Record<string, string> = {
+  "sanctuary-garden-v2": sanctuaryGarden,
+  "sanctuary-scenery-v2": sanctuaryScenery,
+  "sanctuary-ground-v2": sanctuaryGround,
   mochi, biscuit, clover,
   "potato-sleeping": huahuaSleeping, "mochi-sleeping": mochiSleeping,
   "biscuit-sleeping": biscuitSleeping, "clover-sleeping": cloverSleeping,

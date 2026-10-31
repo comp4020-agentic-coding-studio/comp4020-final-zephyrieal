@@ -11,87 +11,67 @@ function distance(x:number,y:number,a:{x:number;y:number},b:{x:number;y:number})
   const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy||1)));
   return Math.hypot(x-a.x-dx*t,y-a.y-dy*t);
 }
-function textures(scene:Phaser.Scene) {
-  if(scene.textures.exists("meadow-tiles"))return;
-  const canvas=scene.textures.createCanvas("meadow-tiles",TILE*12,TILE)!;
-  const ctx=canvas.context;
-  const bases=["#a6bd69","#a6bd69","#a6bd69","#a6bd69","#ddbd7d","#ddbd7d","#ddbd7d","#ddbd7d","#46b8c4","#46b8c4","#91744c","#c3cc80"];
-  bases.forEach((base,i)=>{
-    ctx.fillStyle=base;ctx.fillRect(i*TILE,0,TILE,TILE);
-    for(let n=0;n<28;n++){
-      const h=hash(i,n),x=i*TILE+(h%8)*2,y=((h>>>8)%8)*2;
-      ctx.fillStyle=i<4?(n%3?"#acc571":"#97b461"):i<8?(n%3?"#e3c587":"#d4b274"):i<10?(n%3?"#50c0cd":"#71d2d8"):"#a08756";
-      ctx.fillRect(x,y,n%4===0?4:2,2);
-    }
-  });canvas.refresh();
-  // Tiny native pixel sprites: one fixed art scale, independently reusable.
-  for(const kind of ["tree","pink","pine","rock","flowers"]) {
-    const tex=scene.textures.createCanvas(`meadow-${kind}`,80,96)!;
-    const c=tex.context;c.imageSmoothingEnabled=false;
-    const rect=(color:string,x:number,y:number,w:number,h:number)=>{c.fillStyle=color;c.fillRect(x,y,w,h);};
-    if(kind==="flowers"){
-      for(let n=0;n<7;n++){const x=8+(hash(n,7)%15)*4,y=20+(hash(n,8)%14)*4;rect("#547d44",x,y,4,10);rect(n%2?"#fff1c2":"#e6a5b2",x-4,y-4,12,4);rect("#f2d16b",x,y-4,4,4);}
-    }else if(kind==="rock"){
-      rect("#676f5c",20,65,44,22);rect("#8f9780",16,61,44,20);rect("#abb098",24,53,28,22);rect("#c3c6ab",28,53,16,6);rect("#79866a",46,71,18,12);
-    }else{
-      rect("#567a45",20,80,44,8);rect("#765237",32,48,16,36);rect("#b3874c",36,50,6,32);rect("#765237",24,80,32,4);
-      const dark=kind==="pink"?"#a85e7d":"#365f42",mid=kind==="pink"?"#dc8d9e":"#5c8d47",light=kind==="pink"?"#efb1b9":"#8caf55",shine=kind==="pink"?"#f7d1c6":"#b3c666";
-      for(let y=4;y<78;y+=2)for(let x=4;x<76;x+=2){
-        const h=hash(x,y),cx=x-40;
-        const shape=kind==="pine"
-          ? [16,32,48].some((top,i)=>y>=top && y<top+26 && Math.abs(cx)<(y-top)*.8+4+i*3)
-          : [[28,30,22],[48,29,23],[20,47,17],[42,47,27],[59,47,17]].some(([bx,by,r])=>Math.hypot(x-bx,(y-by)*1.1)<r+(h%3)-1);
-        if(!shape)continue;
-        const shade=(x*.4+y*.6+(h%11));
-        rect(shade>62?dark:shade>43?mid:shade>29?light:shine,x,y,2,2);
-      }
-    }
-    tex.refresh();
-  }
-}
 export function addMeadow(scene:Phaser.Scene) {
-  textures(scene);
   const hubs=[...CONSTRUCTION_SITES.map(s=>sitePosition(s.projectId)!),...FARM_PLOTS,GIANT_CARROT];
+  const pathDistance=(x:number,y:number)=>Math.min(Math.hypot(x-CAMPFIRE.x,y-CAMPFIRE.y)-150,
+    ...hubs.map(hub=>Math.min(Math.hypot(x-hub.x,y-hub.y)-82,distance(x,y,CAMPFIRE,hub)-34)));
   const map=scene.make.tilemap({tileWidth:TILE,tileHeight:TILE,width:MEADOW_WIDTH/TILE,height:MEADOW_HEIGHT/TILE});
-  const tiles=map.addTilesetImage("meadow-tiles","meadow-tiles",TILE,TILE)!;
-  const layer=map.createBlankLayer("terrain",tiles)!.setDepth(-10).setName("meadow-terrain");
-  for(let ty=0;ty<MEADOW_HEIGHT/TILE;ty++)for(let tx=0;tx<MEADOW_WIDTH/TILE;tx++){
-    const x=tx*TILE+TILE/2,y=ty*TILE+TILE/2,h=hash(tx,ty);
-    const water=tx<2||tx>=78||ty<4||ty>=62;
-    const cliff=!water&&(tx===2||tx===77||ty===61);
-    const path=Math.hypot(x-CAMPFIRE.x,y-CAMPFIRE.y)<155||hubs.some(hub=>Math.hypot(x-hub.x,y-hub.y)<82||distance(x,y,CAMPFIRE,hub)<30);
-    const index=water?8+h%2:cliff?10:ty===4?11:path?4+h%4:h%4;
-    layer.putTileAt(index,tx,ty);
-  }
-  // The six-renderer profile exposed tile submission cost. Bake static tiles once
-  // into bounded chunks; keep the tilemap as layout data, not thousands of draw quads.
-  layer.setVisible(false);
-  const atlas=scene.textures.get("meadow-tiles").getSourceImage() as HTMLCanvasElement;
+  const tiles=map.addTilesetImage("meadow-material-grass","meadow-material-grass",TILE,TILE)!;
+  const layer=map.createBlankLayer("terrain",tiles)!.setVisible(false).setName("meadow-terrain");
+  // Logical terrain remains independent of cached artwork and solid object footprints.
+  for(let ty=0;ty<MEADOW_HEIGHT/TILE;ty++)for(let tx=0;tx<MEADOW_WIDTH/TILE;tx++)layer.putTileAt(0,tx,ty);
+  const materials=["grass","path","water","cliff"].map(name=>{
+    const canvas=scene.textures.get(`meadow-material-${name}`) as Phaser.Textures.CanvasTexture;
+    return canvas.context.getImageData(0,0,256,256).data;
+  });
+  const sample=(material:number,x:number,y:number)=>{
+    // Mirrored repeats join identical edge pixels, even if generated material edges vary.
+    const wrap=(v:number)=>{const n=((Math.floor(v)%512)+512)%512;return n<256?n:511-n;};
+    return (wrap(y)*256+wrap(x))*4;
+  };
   const chunkSize=256;
   for(let cy=0;cy<MEADOW_HEIGHT;cy+=chunkSize)for(let cx=0;cx<MEADOW_WIDTH;cx+=chunkSize){
-    const key=`meadow-chunk-overlap-${cx}-${cy}`;
+    const key=`meadow-rich-chunk-${cx}-${cy}`;
     if(!scene.textures.exists(key)){
-      const chunk=scene.textures.createCanvas(key,Math.min(chunkSize,MEADOW_WIDTH-cx)+1,Math.min(chunkSize,MEADOW_HEIGHT-cy)+1)!;
-      chunk.context.imageSmoothingEnabled=false;
-      for(let y=0;y<chunk.height;y+=TILE)for(let x=0;x<chunk.width;x+=TILE){
-        const tile=layer.getTileAt((cx+x)/TILE,(cy+y)/TILE);
-        chunk.context.drawImage(atlas,(tile?.index ?? 8)*TILE,0,TILE,TILE,x,y,TILE,TILE);
+      const width=Math.min(chunkSize,MEADOW_WIDTH-cx)+1,height=Math.min(chunkSize,MEADOW_HEIGHT-cy)+1;
+      const chunk=scene.textures.createCanvas(key,width,height)!;
+      const pixels=chunk.context.createImageData(width,height);
+      for(let py=0;py<height;py+=2)for(let px=0;px<width;px+=2){
+        const x=cx+px,y=cy+py;
+        const left=42+Math.sin(y/23)*4+Math.sin(y/71)*4,right=1238+Math.sin(y/31)*5;
+        const top=72+Math.sin(x/36)*5,bottom=980+Math.sin(x/27)*5;
+        const shore=Math.min(x-left,right-x,y-top,bottom-y);
+        const water=shore<0;
+        const cliff=!water&&(x-left<13||right-x<13||bottom-y<22);
+        const material=water?2:cliff?3:0;
+        const index=sample(material,x,y),base=materials[material];
+        let r=base[index],g=base[index+1],b=base[index+2];
+        if(!water&&!cliff){
+          const d=pathDistance(x,y)+Math.sin(x*.21+y*.31)*2+(hash(Math.floor(x/4),Math.floor(y/4))%5)-2;
+          const blend=Math.max(0,Math.min(1,(7-d)/14));
+          const sand=materials[1],si=sample(1,x,y);
+          r=r*(1-blend)+sand[si]*blend;g=g*(1-blend)+sand[si+1]*blend;b=b*(1-blend)+sand[si+2]*blend;
+          // Grassy lip above the cliff gives the island a readable raised bank.
+          if(shore<5){r=Math.min(255,r*1.08);g=Math.min(255,g*1.08);}
+        }else if(water&&shore>-5){
+          const foam=(hash(Math.floor(x/4),Math.floor(y/4))%4)!==0;
+          if(foam){r=169;g=242;b=243;}
+        }else if(cliff&&shore<3){r*=.72;g*=.72;b*=.72;}
+        for(let oy=0;oy<2&&py+oy<height;oy++)for(let ox=0;ox<2&&px+ox<width;ox++){
+          const target=((py+oy)*width+px+ox)*4;
+          pixels.data[target]=r;pixels.data[target+1]=g;pixels.data[target+2]=b;pixels.data[target+3]=255;
+        }
       }
-      chunk.refresh();
+      chunk.context.putImageData(pixels,0,0);chunk.refresh();chunk.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
     scene.add.image(cx,cy,key).setOrigin(0).setDepth(-10);
   }
-  for(const site of CONSTRUCTION_SITES.filter(s=>s.projectId!=="bridge")) {
-    const p=sitePosition(site.projectId)!;
-    const pad=scene.add.graphics().setDepth(-2);
-    pad.fillStyle(0x777761).fillRect(p.x-48,p.y-52,96,49);
-    for(let row=0;row<3;row++)for(let col=0;col<6;col++)pad.fillStyle((row+col)%2?0xa7a58a:0x95977c).fillRect(p.x-46+col*16,p.y-50+row*16,14,13);
-  }
-  // Decoration is never interactive. Only solid trunks/rocks appear in shared collision data.
-  for(const s of SCENERY)scene.add.image(s.x,s.y+10,`meadow-${s.kind}`).setOrigin(.5,1).setDepth(7);
-  for(let n=0;n<100;n++) {
+  // Trunks and boulders line up with SCENERY's shared solid feet-level rectangles.
+  // Foliage can overhang a path; the trunk, not the crown, is the physical obstacle.
+  for(const [index,s] of SCENERY.entries())scene.add.image(s.x,s.y+10,`meadow-${s.kind}`).setOrigin(.5,1).setDepth(7).setName(`scenery:${index}`);
+  for(let n=0;n<210;n++){
     const x=80+hash(n,1)%1120,y=110+hash(n,2)%820;
-    if(Math.hypot(x-CAMPFIRE.x,y-CAMPFIRE.y)<170||hubs.some(hub=>distance(x,y,CAMPFIRE,hub)<75))continue;
-    scene.add.image(x,y,"meadow-flowers").setOrigin(.5,1).setDepth(-1).setScale(.5);
+    if(pathDistance(x,y)<32||SCENERY.some(s=>Math.hypot(x-s.x,y-s.y)<38))continue;
+    scene.add.image(x,y,n%4===0?"meadow-bush":"meadow-flowers").setOrigin(.5,1).setDepth(-1);
   }
 }

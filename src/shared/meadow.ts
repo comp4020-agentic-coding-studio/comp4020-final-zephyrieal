@@ -9,6 +9,11 @@ export const SCENERY = [
   {x:390,y:440,kind:"tree"}, {x:880,y:340,kind:"tree"}, {x:840,y:710,kind:"pink"},
   {x:390,y:670,kind:"pine"}, {x:190,y:420,kind:"rock"}, {x:1030,y:600,kind:"rock"},
   {x:500,y:800,kind:"rock"}, {x:760,y:220,kind:"rock"},
+  {x:215,y:140,kind:"tree"}, {x:470,y:135,kind:"pink"}, {x:610,y:140,kind:"tree"},
+  {x:930,y:135,kind:"pine"}, {x:1180,y:150,kind:"pine"},
+  {x:230,y:930,kind:"tree"}, {x:450,y:930,kind:"pink"}, {x:960,y:930,kind:"tree"},
+  {x:100,y:265,kind:"tree"}, {x:100,y:455,kind:"pink"}, {x:100,y:750,kind:"pine"},
+  {x:1180,y:270,kind:"tree"}, {x:1180,y:525,kind:"tree"}, {x:1180,y:770,kind:"pine"},
 ] as const;
 // Feet-level rectangles, used by both the artwork and the authoritative simulation.
 export const MEADOW_OBSTACLES: Obstacle[] = [

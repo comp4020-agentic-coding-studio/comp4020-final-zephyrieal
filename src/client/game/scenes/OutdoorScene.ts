@@ -92,7 +92,7 @@ export class OutdoorScene extends Phaser.Scene {
     const x = (MEADOW_WIDTH * site.xPercent) / 100;
     const y = (MEADOW_HEIGHT * site.yPercent) / 100;
 
-    const sprite = this.add.image(x, y - 30, key).setDisplaySize(112, 96).setName(`construction:${projectId}`).setInteractive();
+    const sprite = this.add.image(x, y + 10, key).setOrigin(.5, 1).setName(`construction:${projectId}`).setInteractive();
     sprite.on("pointerdown", () => {
       const self = presenceState.players.find(p => p.id === presenceState.selfId);
       if (inReach(self, x, y, BUILD_REACH)) EventBus.emit("open-construction-panel", projectId);

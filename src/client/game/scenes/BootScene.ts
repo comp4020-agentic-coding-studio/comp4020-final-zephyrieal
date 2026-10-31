@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { prepareMeadowArt, prepareGardenArt } from "../MeadowArt.ts";
 import { SPRITE_ASSETS } from "../assets.ts";
 
 // Runs once: loads every real sprite up front, then hands off to the outdoor
@@ -16,6 +17,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    prepareMeadowArt(this);
+    prepareGardenArt(this);
     // Each view is trimmed to its opaque silhouette; sheet padding is never
     // part of the rendered size or the furniture's clickable area.
     const sheet=this.textures.get("furniture-sheet").getSourceImage() as HTMLImageElement;
