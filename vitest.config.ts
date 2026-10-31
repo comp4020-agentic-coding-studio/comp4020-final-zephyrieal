@@ -15,7 +15,9 @@ export default defineConfig({
     // furniture-concurrency.test.ts) still do so via Promise.all, which this
     // doesn't affect --- it only serializes *files* against each other.
     fileParallelism: false,
-    // Integration fixtures now walk to interactions at real player speed.
-    testTimeout: 20000,
+    // Integration fixtures walk to interactions at real player speed, and
+    // chasing a wandering guinea pig across the expanded meadow on a slow CI
+    // runner can take well over 20s for a test that feeds several times.
+    testTimeout: 45000,
   },
 });
