@@ -9,7 +9,7 @@ export type Crop = keyof typeof CROPS;
 export const CROP_KEYS = Object.keys(CROPS) as Crop[];
 export function isCrop(value: unknown): value is Crop { return typeof value === "string" && Object.hasOwn(CROPS, value); }
 // One communal bed: planting never grants ownership.
-export const FARM_PLOTS = [{ id: 0, x: 286, y: 188 }];
+export const FARM_PLOTS = [{ id: 0, x: 470, y: 260 }];
 export const FARM_REACH = 96;
 export interface FarmPlot { id: number; crop: Crop | null; plantedAt: number | null; readyAt: number | null; version: number }
 export interface FarmState { plots: FarmPlot[]; food: Record<Crop, number>; serverNow: number }

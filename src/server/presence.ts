@@ -1,3 +1,5 @@
+import { SEATS } from "../shared/campfire.ts";
+import { inReach } from "../shared/interactions.ts";
 import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 import { INPUT_LEASE_MS, isMoveIntent, spawnIn, stepPlayer, type Player, type Room } from "../shared/presence.ts";
@@ -30,6 +32,7 @@ export function createPresence() {
     moveRoom(playerId: string, room: Room, position?: { x: number; y: number }) {
       const session = Array.from(sessions.values()).find(s => s.player.id === playerId);
       if (!session) return;
+      delete session.player.seatId;
       delete session.player.gesture;
       session.gestureUntil = undefined;
       session.player.room = room;
@@ -47,11 +50,21 @@ export function createPresence() {
         session.messages = 0;
       }
       if (++session.messages > 60) return;
+      if (value && typeof value === "object" && "type" in value && value.type === "campfire-seat") {
+        const seat = SEATS.find(s => s.id === (value as { seatId?: unknown }).seatId);
+        if (!seat || !inReach(session.player, seat.x, seat.y, 64) ||
+          Array.from(sessions.values()).some(s => s.player.id !== session.player.id && s.player.seatId === seat.id)) return;
+        session.player.seatId = seat.id;
+        Object.assign(session.player, { x: seat.x, y: seat.y, gesture: "sit", moving: false });
+        session.gestureUntil = undefined; session.dx = 0; session.dy = 0; dirty = true; return;
+      }
       if (value && typeof value === "object" && "type" in value && value.type === "visitor-gesture") {
         const gesture = "gesture" in value ? value.gesture : undefined;
         if (gesture !== "wave" && gesture !== "sit" && gesture !== "help") return;
-        if (session.lastGesture !== undefined && now - session.lastGesture < 800) return;
+        if (session.lastGesture !== undefined && now - session.lastGesture < 800 && !(gesture === "sit" && session.player.gesture === "sit")) return;
         session.lastGesture = now;
+        if(session.player.seatId) session.player.y += 22;
+        delete session.player.seatId;
         if (gesture === "sit" && session.player.gesture === "sit") {
           delete session.player.gesture;
           session.gestureUntil = undefined;
@@ -65,6 +78,8 @@ export function createPresence() {
       }
       if (!isMoveIntent(value)) return;
       if (value.dx || value.dy || session.player.room !== value.room) {
+        if(session.player.seatId) session.player.y += 22;
+        delete session.player.seatId;
         if (session.player.gesture) { delete session.player.gesture; session.gestureUntil = undefined; dirty = true; }
       }
       if (session.player.room !== value.room) {

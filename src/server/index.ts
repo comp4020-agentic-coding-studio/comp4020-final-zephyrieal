@@ -38,7 +38,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..", "..");
 const publicDir = join(repoRoot, "public");
 
-import { inReach, sitePosition, FEED_REACH, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../shared/interactions.ts";
+import { inReach, sitePosition, FEED_REACH, BUILD_REACH, roomDimensions } from "../shared/interactions.ts";
 
 const app = express();
 const carrot = createCarrot(db, playerForVisitor);
@@ -147,7 +147,8 @@ app.post("/api/feed", (req: Request, res: Response) => {
   const inhabitant = GUINEA_PIGS.find(p => p.id === guineaPigId);
   if (!inhabitant) { res.status(400).json({ ok: false, reason: "Choose a known guinea pig." }); return; }
   const potato = inhabitantPosition(guineaPigId);
-  if (!requireNearby(req, res, potato.x * MEADOW_WIDTH / 100, potato.y * MEADOW_HEIGHT / 100,
+  const {width,height}=roomDimensions(potato.room);
+  if (!requireNearby(req, res, potato.x * width / 100, potato.y * height / 100,
       FEED_REACH, `Walk closer to ${inhabitant.name} to feed them.`, potato.room)) return;
   const { requestId = randomUUID(), crop = "hay" } = req.body ?? {};
   if (typeof requestId !== "string" || !requestId || !isCrop(crop)) {

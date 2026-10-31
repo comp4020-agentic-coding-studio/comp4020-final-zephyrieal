@@ -1,0 +1,122 @@
+/* One viewport, one game. Native controls form an accessible in-game HUD. */
+:root { --wood: #60472f; --wood-dark: #342c20; --paper: #f4e5bc; --ink: #423b29; --accent: #647449; }
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: #342c20; font-family: "Courier New", monospace; }
+main.game-shell { width: 100%; height: 100dvh; max-width: none; margin: 0; padding: 5px; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 5px; background: var(--wood-dark); box-shadow: inset 0 0 0 2px #a18a58; }
+.game-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; box-shadow: 0 0 0 2px #af9764; }
+.game-container { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; margin: 0; border: 0; border-radius: 0; overflow: hidden; background: #c1d999; }
+.game-container canvas { width: 100%; height: 100%; max-width: none; image-rendering: pixelated; }
+.game-container:focus-visible { outline: 2px solid #f5d68a; outline-offset: -2px; }
+.game-sidebar { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--paper); border: 3px solid var(--wood); box-shadow: inset 0 0 0 2px #fff1cf; font-size: 12px; line-height: 1.5; }
+.sidebar-header { flex: none; padding: 19px 17px 14px; background: #6a5639; color: #fff0c5; border-bottom: 4px solid #423722; box-shadow: inset 0 0 0 2px #9b8457; }
+.sidebar-kicker { display: block; font-size: 9px; line-height: 1.5; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #786542; }
+.sidebar-header .sidebar-kicker { color: #cfbe8a; }
+.sidebar-header h1 { font-family: inherit; font-size: 23px; line-height: 1.08; letter-spacing: -1px; margin: 10px 0; text-shadow: 2px 2px #3f3525; }
+.sidebar-header h1 span { color: #e6cb82; }
+.sidebar-header .room-name { margin: 10px 0 13px; font-size: 11px; color: #fff0c5; }
+.sidebar-header .room-name span { color: #d0c19a; }
+.toolbar { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 8px; margin: 0; }
+.care-points { font-size: 11px; align-self: center; white-space: nowrap; }
+.sidebar-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-color: #9b8355 #e4d3a5; scrollbar-width: thin; padding: 0 15px; }
+.sanctuary-journal { padding: 16px 0; border-bottom: 2px solid #c9b582; }
+.guinea-pig { font-size: 12px; margin: 6px 0; }
+.game-sidebar p { line-height: 1.5; }
+.game-sidebar details { font-size: 11px; }
+.game-sidebar summary { cursor: pointer; color: #6a5639; padding: 4px 0; }
+.game-sidebar details p { margin: 7px 0; }
+.game-sidebar button, .sidebar-toggle { border: 2px solid #705c3a; border-radius: 0; background: #ede0b8; color: #453b28; padding: 7px 9px; font-family: inherit; font-size: 11px; font-weight: bold; line-height: 1.25; box-shadow: inset 2px 2px #fff7db, inset -2px -2px #c5b07c, 0 2px #79633f; }
+.game-sidebar button:hover:not(:disabled), .sidebar-toggle:hover { background: #fff0c3; }
+.game-sidebar button:active:not(:disabled), .sidebar-toggle:active { box-shadow: inset 2px 2px #c5b07c; }
+.game-sidebar button:focus-visible, .sidebar-toggle:focus-visible, .game-sidebar summary:focus-visible { outline: 2px solid #8b4f2c; outline-offset: 2px; }
+.game-sidebar button:disabled { opacity: .48; }
+.sidebar-header button { font-size: 10px; padding: 7px; }
+.sidebar-toggle { position: absolute; right: 12px; top: 12px; z-index: 10; background: #f4e5bc; }
+.campfire-panel { margin: 0; padding: 17px 0; border: 0; border-bottom: 2px solid #c9b582; border-radius: 0; background: transparent; font-size: 11px; line-height: 1.5; }
+.campfire-panel h2 { font-family: inherit; font-size: 18px; font-weight: bold; margin: 4px 0 8px; color: #705135; letter-spacing: -.6px; }
+.campfire-eyebrow { font-size: 9px; letter-spacing: 1.4px; font-weight: bold; }
+.campfire-panel p { margin: 6px 0; }
+.campfire-panel .campfire-music { display: block; margin: 12px 0 4px; }
+.campfire-music > div:first-child { min-width: 0; }
+.campfire-music strong { font-size: 11px; }
+.campfire-music p[role="status"] { padding: 10px; background: #e1d3a5; border-left: 3px solid #a1844c; }
+.campfire-panel ol { padding-left: 22px; margin: 7px 0; }
+.campfire-panel li { padding: 3px 0; }
+.campfire-panel .shop-hint { font-size: 11px; }
+.campfire-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.campfire-seats button { min-width: 0; }
+.campfire-track-buttons { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.campfire-track-buttons button { text-align: left; }
+.campfire-listening { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 12px 0 7px; border-top: 1px solid #c9b582; }
+.campfire-listening strong, .campfire-listening p, .campfire-listening label { grid-column: 1 / -1; }
+.campfire-listening p { margin: 0; }
+.campfire-listening label { display: flex; align-items: center; gap: 12px; }
+.campfire-listening input { width: 100%; min-width: 0; accent-color: #7a8750; }
+.music-notes small { display: block; font-size: 10px; line-height: 1.5; }
+.field-guide { padding: 13px 0 18px; }
+.field-guide a { color: #5b703b; }
+.sidebar-controls { flex: none; padding: 12px 15px 14px; background: #e2d2a6; border-top: 3px solid #8d784b; box-shadow: inset 0 2px #f8ebc4; }
+.player-controls { margin: 0; }
+.presence-status { font-size: 10px; margin: 5px 0 9px; min-height: 30px; }
+.gesture-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 7px 0; }
+.gesture-buttons button { padding: 7px 3px; }
+.gesture-buttons button[aria-pressed="true"] { outline: 2px solid #75804e; outline-offset: 0; background: #c7d09c; }
+.walk-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.walk-buttons button { min-width: 0; min-height: 36px; font-size: 18px; padding: 3px; }
+.game-sidebar .rejection { margin: 0 0 8px; padding: 7px; font-size: 11px; border: 2px solid #a76f4d; border-radius: 0; background: #f4d8b3; }
+.game-sidebar .construction-panel, .game-sidebar .interior-furnishing { position: static; transform: none; width: auto; max-width: none; max-height: none; margin: 12px 0; padding: 10px; border: 2px solid #9d8556; border-radius: 0; background: #fff0c7; box-shadow: 2px 2px #c9b582; font-size: 11px; overflow: visible; }
+.game-sidebar .construction-panel-stats, .game-sidebar .shop-hint, .game-sidebar .storage-hint { font-size: 11px; }
+.game-sidebar .construction-panel-header { align-items: start; gap: 6px; }
+.game-sidebar .interior-furnishing .shop-list { display: grid; grid-template-columns: 1fr; width: 100%; }
+.game-sidebar .storage-list { flex-direction: column; }
+.game-sidebar .storage-item { border-radius: 0; background: #e6d6aa; flex-wrap: wrap; }
+.sidebar-collapsed { grid-template-columns: minmax(0, 1fr) 0 !important; gap: 0 !important; }
+.sidebar-collapsed .game-sidebar { visibility: hidden; overflow: hidden; border: 0; }
+.world-bubble, .farm-menu, .carrot-caption { font-family: "Courier New", monospace; border-radius: 0; }
+@media (max-width: 759px) {
+  main.game-shell { grid-template-columns: minmax(0, 1fr); }
+  .game-sidebar { position: absolute; top: 5px; right: 5px; bottom: 5px; width: min(320px, calc(100% - 45px)); z-index: 12; box-shadow: -4px 0 #342c20; }
+  .sidebar-collapsed .game-sidebar { visibility: hidden; }
+  .sidebar-toggle { z-index: 13; right: 12px; top: 12px; }
+  .game-shell:not(.sidebar-collapsed) .sidebar-toggle { position: fixed; right: 17px; top: 17px; font-size: 10px; }
+  .sidebar-header { padding-top: 45px; }
+  .sidebar-header h1 { font-size: 20px; }
+  .sidebar-controls { padding: 8px 12px 10px; }
+}
+@media (max-height: 620px) {
+  .sidebar-header { padding-top: 10px; padding-bottom: 10px; }
+  .sidebar-header h1 { font-size: 18px; margin: 5px 0; }
+  .sidebar-header h1 br { display: none; }
+  .sidebar-header h1 span::before { content: " "; }
+  .sidebar-header .sidebar-kicker { display: none; }
+  .sidebar-header .room-name { margin: 5px 0; }
+  .sidebar-controls { padding-top: 7px; padding-bottom: 8px; }
+  .presence-status { min-height: 0; }
+}
+
+.youtube-queue-form { display: grid; gap: 9px; margin: 15px 0; padding: 12px 0; border-top: 1px solid #c9b582; }
+.youtube-queue-form label { display: grid; gap: 4px; }
+.youtube-queue-form input { width: 100%; min-width: 0; padding: 8px; font: inherit; color: #423b29; border: 2px solid #9d8556; border-radius: 0; background: #fff6da; }
+.youtube-queue-form small, .youtube-playback small { display: block; font-size: 10px; line-height: 1.5; }
+.youtube-playback { margin: 12px 0; }
+.youtube-frame { width: 100%; min-width: 200px; min-height: 210px; margin: 8px 0; background: #2b2924; }
+.youtube-frame iframe { display: block; width: 100%; height: 210px; border: 0; }
+.youtube-playback a { color: #5b703b; display: block; margin: 6px 0; }
+.youtube-playback button { margin: 6px 0; }
+
+/* Compact radio is part of the viewport, independent of the journal. */
+.game-viewport > .campfire-panel { position:absolute; z-index:11; right:16px; bottom:16px; width:280px; max-width:calc(100% - 32px); max-height:60%; overflow:auto; padding:12px; border:2px solid #5dbfc4; border-radius:18px; background:#102c39f2; color:#e6f3ed; box-shadow:0 4px 0 #08212c66; font:12px/1.4 monospace; }
+.campfire-panel button { font:inherit; cursor:pointer; border:1px solid #578789; border-radius:7px; background:#244450; color:#effbf7; padding:6px 9px; }
+.campfire-panel .radio-toggle { display:flex; justify-content:space-between; width:100%; border:0; background:transparent; padding:0 0 6px; font-weight:bold; font-size:14px; }
+.campfire-panel .radio-hidden { display:none; }
+.campfire-panel .radio-now { padding:5px 8px; border-radius:6px; background:#ffffff12; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.game-viewport .campfire-listening { display:flex; flex-wrap:wrap; gap:6px; padding:8px 0 0; border:0; }
+.game-viewport .campfire-listening > strong,.game-viewport .campfire-listening > p { display:none; }
+.game-viewport .campfire-listening label { display:flex; flex:1 1 100%; gap:8px; align-items:center; }
+.game-viewport .campfire-listening input { width:100%; min-width:0; accent-color:#7be1df; }
+.game-viewport .campfire-panel h2 { color:#d0e8d8; }
+.game-viewport .campfire-panel .campfire-music p[role="status"] { background:#244450; border-color:#77c6c1; }
+.game-viewport .campfire-panel a {color:#a3e3dc;}
+.game-viewport .youtube-queue-form input {background:#e8f1dc;}
+.game-viewport .radio-details {max-height:310px;overflow:auto;}
+@media(max-width:600px){.game-viewport > .campfire-panel{right:10px;bottom:10px;width:240px;font-size:10px;max-height:48%;}}

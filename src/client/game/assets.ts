@@ -1,4 +1,7 @@
-import sanctuaryIsland from "../assets/sprites/sanctuary-island.png";
+import huahuaSleeping from "../assets/sprites/guinea-pig-huahua-sleeping.png";
+import mochiSleeping from "../assets/sprites/guinea-pig-mochi-sleeping.png";
+import biscuitSleeping from "../assets/sprites/guinea-pig-biscuit-sleeping.png";
+import cloverSleeping from "../assets/sprites/guinea-pig-clover-sleeping.png";
 import mochi from "../assets/sprites/guinea-pig-mochi.png";
 import biscuit from "../assets/sprites/guinea-pig-biscuit.png";
 import clover from "../assets/sprites/guinea-pig-clover.png";
@@ -9,14 +12,6 @@ import grassTile from "../assets/sprites/grass-tile.png";
 import flower from "../assets/sprites/flower.png";
 import guineaPig from "../assets/sprites/guinea-pig-huahua-tricolour.png";
 import hayBedFront from "../assets/sprites/furniture-cozy.png";
-import hayBedBack from "../assets/sprites/furniture-cozy.png";
-import hayBedLeft from "../assets/sprites/furniture-cozy.png";
-import tunnelFront from "../assets/sprites/furniture-cozy.png";
-import tunnelBack from "../assets/sprites/furniture-cozy.png";
-import tunnelLeft from "../assets/sprites/furniture-cozy.png";
-import hideoutFront from "../assets/sprites/furniture-cozy.png";
-import hideoutBack from "../assets/sprites/furniture-cozy.png";
-import hideoutLeft from "../assets/sprites/furniture-cozy.png";
 import iconRotate from "../assets/sprites/icon-rotate.png";
 import iconMove from "../assets/sprites/icon-move.png";
 import iconSave from "../assets/sprites/icon-save.png";
@@ -53,23 +48,16 @@ import greatHall4 from "../assets/sprites/great-hall-4.png";
 // replaces the crit-8/9 procedural Graphics placeholders. Vite imports each
 // PNG as a hashed URL, so BootScene.preload() just needs key -> url.
 export const SPRITE_ASSETS: Record<string, string> = {
-  "sanctuary-island": sanctuaryIsland,
   mochi, biscuit, clover,
+  "potato-sleeping": huahuaSleeping, "mochi-sleeping": mochiSleeping,
+  "biscuit-sleeping": biscuitSleeping, "clover-sleeping": cloverSleeping,
   "visitor-gardener": visitorGardener,
+  "furniture-sheet": hayBedFront,
   "tile-floor": tileFloor,
   "tile-wall": tileWall,
   "grass-tile": grassTile,
   flower,
   "guinea-pig": guineaPig,
-  "furniture-hay_bed-front": hayBedFront,
-  "furniture-hay_bed-back": hayBedBack,
-  "furniture-hay_bed-left": hayBedLeft,
-  "furniture-tunnel-front": tunnelFront,
-  "furniture-tunnel-back": tunnelBack,
-  "furniture-tunnel-left": tunnelLeft,
-  "furniture-hideout-front": hideoutFront,
-  "furniture-hideout-back": hideoutBack,
-  "furniture-hideout-left": hideoutLeft,
   "icon-rotate": iconRotate,
   "icon-move": iconMove,
   "icon-save": iconSave,

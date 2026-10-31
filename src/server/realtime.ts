@@ -2,10 +2,12 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 import { logAction } from "./log.ts";
 import { verifyVisitorCookie } from "./identity.ts";
+import { createMusicQueue } from "./campfire.ts";
 import { createPresence } from "./presence.ts";
 
 // Persistent mutations use HTTP; ephemeral movement intents use this socket.
 const presence = createPresence();
+const music = createMusicQueue();
 export const movePlayerRoom = presence.moveRoom;
 
 // A public avatar id is usable only with the signed identity owning its socket.
@@ -28,6 +30,7 @@ export function attachRealtime(httpServer: Server): void {
     const message = presence.tick(now, (now - previousTick) / 1000);
     previousTick = now;
     if (message) broadcast(message);
+    if (music.tick(Date.now())) broadcast({ type: "music-state", music: music.snapshot(Date.now()) });
   }, 50);
   movementTimer.unref();
   const alive = new WeakSet<WebSocket>();
@@ -72,9 +75,27 @@ export function attachRealtime(httpServer: Server): void {
       ws.on("error", () => ws.terminate());
       const selfId = presence.join(ws);
       ws.send(JSON.stringify({ type: "presence-welcome", selfId, players: presence.snapshot() }));
+      ws.send(JSON.stringify({ type: "music-state", music: music.snapshot(Date.now()) }));
+      let musicWindow = 0, musicMessages = 0;
       ws.on("message", (data, binary) => {
         if (binary) return;
-        try { presence.input(ws, JSON.parse(data.toString()), performance.now()); }
+        try {
+          const intent = JSON.parse(data.toString());
+          if (["music-remove", "music-add-youtube", "music-duration", "music-skip"].includes(intent?.type)) {
+            if (Date.now() - musicWindow >= 1000) { musicWindow = Date.now(); musicMessages = 0; }
+            if (++musicMessages > 10) { ws.send(JSON.stringify({ type: "purchase-rejected", reason: "Please give the music queue a moment." })); return; }
+            if (intent.type === "music-duration") {
+              if (music.reportDuration(visitorId, intent.playbackId, intent.seconds)) broadcast({ type: "music-state", music: music.snapshot(Date.now()) });
+              return;
+            }
+            const player = presence.playerFor(ws);
+            const reason = intent.type === "music-add-youtube" ? music.addYouTube(visitorId, player, intent.url, intent.title, Date.now())
+              : intent.type === "music-skip" ? music.skip(visitorId, player, intent.playbackId, Date.now())
+              : (music.remove(visitorId), null);
+            if (reason) ws.send(JSON.stringify({ type: "purchase-rejected", reason }));
+            else broadcast({ type: "music-state", music: music.snapshot(Date.now()) });
+          } else presence.input(ws, intent, performance.now());
+        }
         catch { /* Malformed input never changes the world. */ }
       });
       logAction(visitorId, "connected", { totalVisitors: connections.size });

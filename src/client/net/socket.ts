@@ -6,6 +6,7 @@ import type { PresenceIntent, PresenceMessage } from "../../shared/presence.ts";
 import type { CarrotState } from "../../shared/carrot.ts";
 export type RealtimeMessage =
   | { type: "carrot-updated"; carrot: CarrotState }
+  | { type: "music-state"; music: import("../../shared/campfire.ts").MusicState }
   | PresenceMessage
   | { type: "construction-dust"; projectId: string }
   | { type: "farm-updated"; farm: FarmState }

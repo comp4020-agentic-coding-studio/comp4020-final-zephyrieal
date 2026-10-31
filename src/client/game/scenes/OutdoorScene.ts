@@ -1,3 +1,5 @@
+import { addMeadow } from "../MeadowLayer.ts";
+import { addCampfire } from "../CampfireLayer.ts";
 import { configureCamera } from "../FollowCamera.ts";
 import { onSceneExit } from "../onSceneExit.ts";
 import { addGuineaPigs } from "../GuineaPigLayer.ts";
@@ -46,12 +48,12 @@ export class OutdoorScene extends Phaser.Scene {
 
   create() {
     addPlayers(this, "outdoor");
-    const width = MEADOW_WIDTH, height = MEADOW_HEIGHT;
     configureCamera(this, true);
-    this.add.image(width / 2, height / 2, "sanctuary-island").setDisplaySize(width, height).setDepth(-10);
+    addMeadow(this);
 
     this.reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
+    addCampfire(this);
     addGuineaPigs(this);
 
     this.lastDust.clear();
@@ -90,7 +92,7 @@ export class OutdoorScene extends Phaser.Scene {
     const x = (MEADOW_WIDTH * site.xPercent) / 100;
     const y = (MEADOW_HEIGHT * site.yPercent) / 100;
 
-    const sprite = this.add.image(x, y, key).setName(`construction:${projectId}`).setInteractive();
+    const sprite = this.add.image(x, y - 30, key).setDisplaySize(112, 96).setName(`construction:${projectId}`).setInteractive();
     sprite.on("pointerdown", () => {
       const self = presenceState.players.find(p => p.id === presenceState.selfId);
       if (inReach(self, x, y, BUILD_REACH)) EventBus.emit("open-construction-panel", projectId);

@@ -1,5 +1,5 @@
 import type { Room } from "../../shared/rooms.ts";
-import { MEADOW_WIDTH, MEADOW_HEIGHT } from "../../shared/interactions.ts";
+import { roomDimensions } from "../../shared/interactions.ts";
 import { onSceneExit } from "./onSceneExit.ts";
 import Phaser from "phaser";
 import { sanctuaryState } from "./sanctuaryState.ts";
@@ -26,13 +26,24 @@ export function addGuineaPigs(scene: Phaser.Scene, room: Room = "outdoor") {
       const m = pig.movement;
       const remaining = Math.max(0, m.startedAt + m.durationMs - pig.receivedAt);
       const t = remaining ? Phaser.Math.Clamp((Date.now() - pig.receivedAt) / remaining, 0, 1) : 1;
-      const x = (m.x + (m.targetX - m.x) * t) * MEADOW_WIDTH / 100;
-      const y = (m.y + (m.targetY - m.y) * t) * MEADOW_HEIGHT / 100;
-      sprite.body.setPosition(x, y);
+      const {width:worldWidth,height:worldHeight}=roomDimensions(room);
+      const x = (m.x + (m.targetX - m.x) * t) * worldWidth / 100;
+      const y = (m.y + (m.targetY - m.y) * t) * worldHeight / 100;
       const activity = m.activity;
+      const awakeKey = pig.id === "potato" ? "guinea-pig" : pig.id;
+      const awakeFrame = pig.id === "potato" ? "potato" : "pig";
+      const sleeping = activity === "resting";
+      const textureKey = sleeping ? `${pig.id}-sleeping` : awakeKey;
+      const frameName = sleeping ? "sleeping" : awakeFrame;
+      if (sprite.body.texture.key !== textureKey) sprite.body.setTexture(textureKey, frameName);
+      const size = room === "outdoor" ? 38 : 28;
+      const height = size * sprite.body.frame.height / sprite.body.frame.width;
+      const normal = scene.textures.getFrame(awakeKey, awakeFrame);
+      const normalHeight = size * normal.height / normal.width;
+      sprite.body.setDisplaySize(size, height).setPosition(x, y + (normalHeight - height) / 2);
       sprite.body.setAlpha(activity === "hiding" ? 0.25 : 1);
       sprite.body.setDepth(activity === "resting" ? 5 : 3);
-      sprite.label.setDepth(6).setText(activity ? `${pig.name} · ${activity === "resting" ? "Resting on hay" : activity === "hiding" ? "In the hideout" : "Exploring the tunnel"}` : pig.name);
+      sprite.label.setDepth(6).setText(activity && activity !== "resting" ? `${pig.name} · ${activity === "hiding" ? "In the hideout" : "Exploring the tunnel"}` : pig.name);
       if (m.targetX !== m.x) sprite.body.setFlipX(m.targetX < m.x);
       sprite.label.setPosition(x, y + 15);
     }

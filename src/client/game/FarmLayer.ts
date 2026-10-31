@@ -8,13 +8,14 @@ export function addFarm(scene: Phaser.Scene) {
   const graphics = scene.add.graphics().setDepth(1);
   const title = scene.add.text(FARM_PLOTS[0].x, FARM_PLOTS[0].y - 48, "HUAHUA’S GARDEN", { fontFamily: "monospace", fontSize: "9px", color: "#fff2d5", backgroundColor: "#76543a", padding: { x: 5, y: 3 } }).setOrigin(0.5);
   title.setDepth(2);
-  let last = -Infinity;
+  let last = -Infinity, signature="";
   const draw = (time: number) => {
     if (time - last < 250) return;
     last = time;
-    graphics.clear();
     const farm = sanctuaryState.farm;
     const now = farm ? farm.serverNow + Date.now() - sanctuaryState.farmReceivedAt : Date.now();
+    const next=JSON.stringify(farm?.plots.map(p=>[p.version,p.crop,p.readyAt!==null&&now>=p.readyAt,p.readyAt!==null&&p.plantedAt!==null&&now-p.plantedAt>(p.readyAt-p.plantedAt)/2]));
+    if(next===signature)return;signature=next;graphics.clear();
     for (const plot of FARM_PLOTS) {
       const x = plot.x - 53, y = plot.y - 36;
       graphics.fillStyle(0x68442e).fillRect(x - 2, y - 2, 110, 76);

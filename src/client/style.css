@@ -284,3 +284,15 @@ button:disabled {
 .gesture-buttons button[aria-pressed="true"] { outline: 3px solid #5179a8; }
 
 .carrot-caption { line-height: 1.35; position: absolute; transform: translate(-50%, -100%); max-width: 210px; width: max-content; padding: 4px 7px; border-radius: 6px; background: #fff6df; color: #513b29; font-size: 11px; text-align: center; pointer-events: none; }
+
+.campfire-panel { margin: 1rem 0; padding: 1.2rem 1.4rem; background: #fff5df; border: 1px solid #d7bc8c; border-radius: 1rem; line-height: 1.5; }
+.campfire-panel h2 { margin: .15rem 0; font-family: Georgia, serif; color: #67462f; }
+.campfire-panel p { margin: .4rem 0; }
+.campfire-eyebrow { text-transform: uppercase; letter-spacing: .13em; font-size: .7rem; color: #87643f; }
+.campfire-music { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
+.campfire-music > div:first-child { flex: 1; min-width: 220px; }
+.campfire-listening { display: flex; flex-direction: column; align-items: start; gap: .4rem; }
+.campfire-track-buttons, .campfire-seats { display: flex; flex-wrap: wrap; gap: .5rem; margin: .7rem 0; }
+.campfire-panel button { padding: .5rem .75rem; border: 1px solid #aa885c; border-radius: .6rem; background: #fffaf0; color: #553e2a; cursor: pointer; }
+.campfire-panel button:disabled { opacity: .5; cursor: default; }
+.campfire-panel small { color: #76634c; }

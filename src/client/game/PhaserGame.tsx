@@ -5,6 +5,8 @@ import { createGameConfig } from "./config.ts";
 import { WorldInteractions } from "../ui/WorldInteractions.tsx";
 import { EventBus } from "./eventBus.ts";
 
+import { gameRuntime } from "./gameRuntime.ts";
+
 // One Phaser.Game instance, two Scenes (outdoor meadow, indoor house) ---
 // never two mounts. Switching is driven here, at the Game level, rather than
 // from inside a Scene: a stopped-but-not-destroyed Scene can still be
@@ -14,7 +16,13 @@ export function PhaserGame({ children }: { children?: ReactNode }) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const game = new Phaser.Game(createGameConfig(containerRef.current));
+    const container = containerRef.current;
+    const game = new Phaser.Game(createGameConfig(container));
+    if(import.meta.env.DEV) gameRuntime.current=game;
+    const resize = new ResizeObserver(() => {
+      if (container.clientWidth && container.clientHeight) game.scale.resize(container.clientWidth, container.clientHeight);
+    });
+    resize.observe(container);
 
     const onSwitch = (target: Room) => {
       game.registry.set("requestedRoom", target);
@@ -31,6 +39,8 @@ export function PhaserGame({ children }: { children?: ReactNode }) {
 
     return () => {
       EventBus.off("switch-scene", onSwitch);
+      resize.disconnect();
+      gameRuntime.current=null;
       game.destroy(true);
     };
   }, []);

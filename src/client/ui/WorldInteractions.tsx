@@ -1,3 +1,4 @@
+import { SEATS } from "../../shared/campfire.ts";
 import { CarrotBubble } from "./CarrotBubble.tsx";
 import { worldPosition } from "../game/cameraState.ts";
 import { isBuilding } from "../../shared/rooms.ts";
@@ -6,20 +7,35 @@ import { useEffect, useState } from "react";
 import { EventBus } from "../game/eventBus.ts";
 import { presenceState } from "../game/presenceState.ts";
 import { sanctuaryState } from "../game/sanctuaryState.ts";
-import { inReach, sitePosition, CONSTRUCTION_SITES, FEED_REACH, BUILD_REACH, MEADOW_WIDTH, MEADOW_HEIGHT } from "../../shared/interactions.ts";
+import { inReach, sitePosition, CONSTRUCTION_SITES, FEED_REACH, BUILD_REACH, roomDimensions } from "../../shared/interactions.ts";
 
-interface Action { pigId?: string; name?: string; key: string; label: string; x: number; y: number; run: () => void }
+interface Action { priority?: number; accessibleName?: string; pigId?: string; name?: string; key: string; label: string; x: number; y: number; run: () => void }
 function actions(): Action[] {
   const self = presenceState.players.find(p => p.id === presenceState.selfId);
   if (!presenceState.connected || !self) return [];
   const result: Action[] = [];
+  if (self.gesture === "sit") {
+    result.push({ key: "stand", accessibleName: "Stand up", priority: -1,
+      label: "Stand up", x: self.x, y: self.y + 25,
+      run: () => EventBus.emit("visitor-input", { type: "visitor-gesture", gesture: "sit" }) });
+  } else {
+    // Only the nearest free log gets a prompt. Keep its reach tight so feeding
+    // and building remain easy to select when walking away from the seats.
+    const seat = SEATS.filter(s => inReach(self, s.x, s.y, 40) &&
+      !presenceState.players.some(p => p.seatId === s.id))
+      .sort((a,b) => Math.hypot(a.x-self.x,a.y-self.y)-Math.hypot(b.x-self.x,b.y-self.y))[0];
+    if (seat) result.push({ key: `seat-${seat.id}`, accessibleName: `Sit on log ${SEATS.indexOf(seat)+1}`, priority: 0,
+      label: "Sit", x: seat.x, y: seat.y + 24,
+      run: () => EventBus.emit("visitor-input", { type: "campfire-seat", seatId: seat.id }) });
+  }
   for (const pig of Object.values(sanctuaryState.guineaPigs)) {
     const movement = pig.movement;
     if ((movement.room ?? "outdoor") !== self.room) continue;
     const remaining = Math.max(0, movement.startedAt + movement.durationMs - pig.receivedAt);
     const t = remaining ? Math.min(1, Math.max(0, (Date.now() - pig.receivedAt) / remaining)) : 1;
-    const x = (movement.x + (movement.targetX - movement.x) * t) * MEADOW_WIDTH / 100;
-    const y = (movement.y + (movement.targetY - movement.y) * t) * MEADOW_HEIGHT / 100;
+    const {width,height}=roomDimensions(self.room);
+    const x = (movement.x + (movement.targetX - movement.x) * t) * width / 100;
+    const y = (movement.y + (movement.targetY - movement.y) * t) * height / 100;
     if (inReach(self, x, y, FEED_REACH - 4, self.room)) result.push({
       key: `feed-${pig.id}`, pigId: pig.id, name: pig.name, label: `Feed ${pig.name} · E`, x, y: y - 24,
       run: () => EventBus.emit("open-food-menu", pig.id),
@@ -36,7 +52,7 @@ function actions(): Action[] {
         : EventBus.emit("open-construction-panel", site.projectId),
     });
   }
-  return result.sort((a, b) => Math.hypot(a.x - self.x, a.y - self.y) - Math.hypot(b.x - self.x, b.y - self.y));
+  return result.sort((a, b) => (a.priority ?? 1) - (b.priority ?? 1) || Math.hypot(a.x - self.x, a.y - self.y) - Math.hypot(b.x - self.x, b.y - self.y));
 }
 export function WorldInteractions() {
   const [selectedPig, setSelectedPig] = useState("potato");
@@ -49,7 +65,7 @@ export function WorldInteractions() {
   useEffect(() => {
     let frame = 0, last = -Infinity;
     const update = (now: number) => {
-      if (now - last > 80) { setNearby(actions()); last = now; }
+      if (now - last > 80) { const next=actions(); setNearby(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next); last = now; }
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
@@ -66,10 +82,10 @@ export function WorldInteractions() {
     <FarmBubbles />
     <CarrotBubble />
     <FoodBubble action={nearby.find(action => action.pigId === selectedPig)} />
-    {nearby.map(action => <button key={action.key} type="button"
-      className="world-bubble" aria-label={action.pigId ? `Feed ${action.name}` : `${action.label.startsWith("Enter") ? "Enter" : "Build"} ${action.key}`}
+    {nearby.map((action, index) => <button key={action.key} type="button"
+      className="world-bubble" aria-label={action.accessibleName ?? (action.pigId ? `Feed ${action.name}` : `${action.label.startsWith("Enter") ? "Enter" : "Build"} ${action.key}`)}
       style={worldPosition(action.x, action.y)}
       onPointerDown={event => event.stopPropagation()}
-      onClick={() => actions().find(current => current.key === action.key)?.run()}>{action.label}</button>)}
+      onClick={() => actions().find(current => current.key === action.key)?.run()}>{action.label.replace(" · E", "")}{index === 0 ? " · E" : ""}</button>)}
   </div>;
 }

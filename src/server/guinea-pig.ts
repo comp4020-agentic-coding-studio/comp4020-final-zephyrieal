@@ -1,3 +1,6 @@
+import { MEADOW_WIDTH, MEADOW_HEIGHT } from "../shared/interactions.ts";
+import { clearMeadowPath } from "../shared/meadow.ts";
+import { CAMPFIRE, SEATS } from "../shared/campfire.ts";
 import type { Room } from "../shared/rooms.ts";
 import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 // Huahua wanders the outdoor meadow on her own --- CLAUDE.md: "Never
@@ -30,7 +33,7 @@ export interface GuineaPigMovement {
 }
 
 const MEADOW_MARGIN = 15; // stay off the very edge, clear of the outdoor border
-const WALK_SPEED_PERCENT_PER_SEC = 8; // a believable amble, not a dash
+const WALK_SPEED_PERCENT_PER_SEC = 4; // a believable amble, not a dash
 const MIN_PAUSE_MS = 3000;
 const MAX_PAUSE_MS = 8000;
 // A random nearby target can land very close to (or, rarely, exactly on)
@@ -54,8 +57,23 @@ export function pickNextTarget(
   random: () => number = Math.random,
 ): { targetX: number; targetY: number; durationMs: number } {
   const maxStep = (100 - 2 * MEADOW_MARGIN) / 2;
-  const targetX = clampToMeadow(fromX + (random() * 2 - 1) * maxStep);
-  const targetY = clampToMeadow(fromY + (random() * 2 - 1) * maxStep);
+  let targetX = fromX, targetY = fromY;
+  const obstacles = [{ x: CAMPFIRE.x, y: CAMPFIRE.y, radius: 34 }, ...SEATS.map(s => ({ ...s, radius: 27 }))];
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const angle = random() * Math.PI * 2 + attempt * 1.2;
+    const visitFire = random() < .3;
+    const dx = (random() * 2 - 1) * maxStep, dy = (random() * 2 - 1) * maxStep;
+    const turn = attempt * 1.2;
+    const tx = visitFire ? (CAMPFIRE.x + Math.cos(angle) * 92) / (MEADOW_WIDTH / 100) : clampToMeadow(fromX + dx*Math.cos(turn)-dy*Math.sin(turn));
+    const ty = visitFire ? (CAMPFIRE.y + Math.sin(angle) * 92) / (MEADOW_HEIGHT / 100) : clampToMeadow(fromY + dx*Math.sin(turn)+dy*Math.cos(turn));
+    const blocked = obstacles.some(o => {
+      // An animal initially inside a new prop's clearance may leave it.
+      if (Math.hypot(fromX*(MEADOW_WIDTH/100)-o.x, fromY*(MEADOW_HEIGHT/100)-o.y) < o.radius) return false;
+      for (let i=1;i<=24;i++) if (Math.hypot((fromX+(tx-fromX)*i/24)*(MEADOW_WIDTH/100)-o.x,(fromY+(ty-fromY)*i/24)*(MEADOW_HEIGHT/100)-o.y)<o.radius) return true;
+      return false;
+    });
+    if (!blocked && clearMeadowPath(fromX*MEADOW_WIDTH/100,fromY*MEADOW_HEIGHT/100,tx*MEADOW_WIDTH/100,ty*MEADOW_HEIGHT/100) && Math.hypot(tx-fromX,ty-fromY)>1) { targetX=tx; targetY=ty; break; }
+  }
   const distance = Math.hypot(targetX - fromX, targetY - fromY);
   const durationMs = Math.max(MIN_WALK_DURATION_MS, Math.round((distance / WALK_SPEED_PERCENT_PER_SEC) * 1000));
   return { targetX, targetY, durationMs };
@@ -102,7 +120,7 @@ function tick(now: number = Date.now(), random: () => number = Math.random): Gui
   if (state.durationMs > 0) {
     // Just this instant arrived at a walk's target: settle there, start
     // resting, and set when the next walk may begin.
-    state = { x: arrivedX, y: arrivedY, targetX: arrivedX, targetY: arrivedY, startedAt: now, durationMs: 0 };
+    state = { x: arrivedX, y: arrivedY, targetX: arrivedX, targetY: arrivedY, startedAt: now, durationMs: 0, activity: "resting" };
     pauseUntil = now + MIN_PAUSE_MS + random() * (MAX_PAUSE_MS - MIN_PAUSE_MS);
     return state;
   }

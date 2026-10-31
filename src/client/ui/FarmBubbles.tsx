@@ -10,8 +10,12 @@ function self() { return presenceState.players.find(p => p.id === presenceState.
 function useWorldTick() {
   const [, refresh] = useState(0);
   useEffect(() => {
-    let frame = 0, last = 0;
-    const tick = (now: number) => { if (now - last > 16) { refresh(n => n + 1); last = now; } frame = requestAnimationFrame(tick); };
+    let frame = 0, last = 0, signature="";
+    const tick = (now: number) => { if (now - last > 80) {
+      const player=self();
+      const next=JSON.stringify([cameraState,player?.x,player?.y,player?.room,sanctuaryState.farm?.serverNow,Math.floor(Date.now()/1000)]);
+      if(next!==signature){signature=next;refresh(n=>n+1);}last=now;
+    } frame = requestAnimationFrame(tick); };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, []);
