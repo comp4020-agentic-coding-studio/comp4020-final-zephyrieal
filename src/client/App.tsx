@@ -1,4 +1,5 @@
 import { CampfirePanel } from "./ui/CampfirePanel.tsx";
+import { CampfireChat } from "./ui/CampfireChat.tsx";
 import { roomName, type Room } from "../shared/rooms.ts";
 import { useEffect, useRef, useState } from "react";
 import { PhaserGame } from "./game/PhaserGame.tsx";
@@ -79,6 +80,7 @@ export default function App() {
       <div className="game-viewport">
         <PhaserGame />
         <CampfirePanel />
+        <CampfireChat />
         <button className="sidebar-toggle" type="button" aria-controls="game-sidebar"
           aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? "Hide sidebar ›" : "‹ Open sidebar"}
@@ -131,6 +133,7 @@ export default function App() {
             <p>Click the meadow, then use <strong>WASD or arrow keys</strong> to walk. Your character is labelled with your name (or “You”). Walk up to an animal or building and press <strong>E</strong>, or tap its nearby action. Finished buildings, including the shared shelter, are entered on foot; walk out through the doorway to leave.</p>
             <p>Click the shared garden to plant or harvest food. Everyone can help it grow.</p>
             <p>Walk beside a free campfire log and press E to sit. Press E again or walk to stand again.</p>
+            <p>Near the campfire you can type in <strong>Campfire chat</strong>. It's public: everyone at the fire can read it, and nobody else. Use ⋯ beside a message to mute, block or report someone.</p>
             <a href="/readme/" target="_blank" rel="noreferrer">About this sanctuary ↗</a>
           </details>
         </div>

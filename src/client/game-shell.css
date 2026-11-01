@@ -137,3 +137,32 @@ main.game-shell { width: 100%; height: 100dvh; max-width: none; margin: 0; paddi
 .welcome-actions button:focus-visible { outline: 2px solid #8b4f2c; outline-offset: 2px; }
 .welcome-actions button:disabled { opacity: .48; }
 .welcome-skip { box-shadow: none !important; background: transparent !important; border-color: transparent !important; text-decoration: underline; }
+/* Campfire chat sits opposite the radio and shares its colour scheme. */
+.campfire-chat { position:absolute; z-index:11; left:16px; bottom:16px; width:300px; max-width:calc(100% - 32px); display:flex; flex-direction:column; gap:6px; padding:10px 12px; border:2px solid #5dbfc4; border-radius:18px; background:#102c39f2; color:#e6f3ed; box-shadow:0 4px 0 #08212c66; font:12px/1.4 monospace; }
+.campfire-chat.chat-closed { width:auto; }
+.campfire-chat button, .campfire-chat select { font:inherit; cursor:pointer; border:1px solid #578789; border-radius:7px; background:#244450; color:#effbf7; padding:5px 8px; }
+.campfire-chat button:disabled { opacity:.5; cursor:default; }
+.campfire-chat button:focus-visible, .campfire-chat input:focus-visible, .campfire-chat select:focus-visible { outline:2px solid #7be1df; outline-offset:1px; }
+.campfire-chat .chat-toggle { display:flex; justify-content:space-between; gap:12px; width:100%; border:0; background:transparent; padding:0; font-weight:bold; font-size:13px; }
+.chat-audience { margin:0; padding:4px 7px; border-left:3px solid #77c6c1; background:#ffffff12; font-size:11px; }
+.chat-log { list-style:none; margin:0; padding:0 2px; max-height:180px; min-height:60px; overflow-y:auto; overflow-wrap:anywhere; }
+.chat-log li { padding:2px 0; position:relative; }
+.chat-name { font-weight:bold; color:#a3e3dc; }
+.chat-notice { color:#9fc4c0; font-style:italic; }
+.chat-pending { opacity:.65; }
+.chat-sending { font-size:10px; color:#9fc4c0; }
+.chat-menu { display:inline; }
+.campfire-chat .chat-more { padding:0 5px; margin-left:4px; border-color:transparent; background:transparent; color:#9fc4c0; }
+.chat-actions { display:flex; flex-wrap:wrap; gap:4px; margin:3px 0 2px; }
+.chat-report label { display:flex; gap:6px; align-items:center; flex:1 1 100%; }
+.chat-form { display:grid; gap:4px; }
+.chat-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.chat-row { display:flex; gap:6px; }
+.chat-row input { flex:1; min-width:0; padding:6px 8px; font:inherit; color:#102c39; background:#e8f1dc; border:2px solid #578789; border-radius:7px; }
+.chat-hint { margin:0; font-size:10px; color:#9fc4c0; }
+.chat-hint[role="alert"] { color:#ffc29a; }
+.chat-blocked { font-size:11px; }
+.chat-blocked ul { list-style:none; margin:4px 0 0; padding:0; display:grid; gap:4px; }
+.chat-blocked p { margin:4px 0; }
+/* Narrow screens: stack chat above the compact radio instead of overlapping it. */
+@media(max-width:600px){.campfire-chat{left:10px;bottom:auto;top:56px;width:min(260px,calc(100% - 20px));font-size:11px;}.chat-log{max-height:110px;}}
