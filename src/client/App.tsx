@@ -1,6 +1,6 @@
 import { CampfirePanel } from "./ui/CampfirePanel.tsx";
 import { roomName, type Room } from "../shared/rooms.ts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PhaserGame } from "./game/PhaserGame.tsx";
 import { PlayerControls } from "./ui/PlayerControls.tsx";
 import { EventBus } from "./game/eventBus.ts";
@@ -35,6 +35,14 @@ export default function App() {
   });
   const [renaming, setRenaming] = useState(false);
   const showWelcome = renaming || (visitorName === null && !welcomeSkipped);
+  const wasWelcomeOpen = useRef(showWelcome);
+  useEffect(() => {
+    // Run after the dialog unmounts, for save, skip, cancel and Escape alike.
+    if (wasWelcomeOpen.current && !showWelcome) {
+      document.querySelector<HTMLElement>(".game-container")?.focus({ preventScroll: true });
+    }
+    wasWelcomeOpen.current = showWelcome;
+  }, [showWelcome]);
   function closeWelcome() {
     if (renaming) { setRenaming(false); return; }
     try { localStorage.setItem(WELCOME_SKIPPED_KEY, "1"); } catch { /* still dismissed for this visit */ }
