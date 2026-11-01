@@ -1,14 +1,14 @@
 # Guinea Pig Sanctuary
 
-Guinea Pig Sanctuary is a small real-time world shared by visitors and a persistent group of guinea pigs. People can explore the sanctuary, interact through simple gestures, spend time with the guinea pigs, and gradually change the environment together. When they leave, those changes remain for whoever comes next.
+Guinea Pig Sanctuary is a small real-time world shared by visitors and a persistent group of guinea pigs. People can explore the sanctuary, interact through simple gestures, talk with whoever is at the campfire, spend time with the guinea pigs, and gradually change the environment together. When they leave, those changes remain for whoever comes next.
 
 ## What does good mean here?
 
-I want the sanctuary to be good at creating **small moments of connection between strangers without demanding conversation, competition or commitment**. Another person should not just be another avatar on the screen. Their presence should change what is possible.
+I want the sanctuary to be good at creating **small moments of connection between strangers without demanding conversation, competition or commitment**. Another person should not just be another avatar on the screen. Their presence should change what is possible. Talking is allowed, but never required: everything in the sanctuary can be done, and shared, without typing a word.
 
 Two visitors might help pull a carrot from the ground. Several people might finish building a shelter and watch a guinea pig move into it. A group sitting quietly near a burrow might encourage a shy guinea pig to emerge. These are small events, but they become interesting because other people are there.
 
-I looked at *Sky: Children of the Light* because it makes encounters with strangers meaningful without immediately relying on normal text chat. Players initially communicate through movement and expressions, with further forms of communication developing through interaction. I like the idea that waving, pointing, sitting beside someone or helping them can be enough to acknowledge another person. I want to explore that idea on a much smaller scale.
+I looked at *Sky: Children of the Light* because it makes encounters with strangers meaningful without immediately relying on normal text chat. Players initially communicate through movement and expressions, with further forms of communication developing through interaction. I like the idea that waving, pointing, sitting beside someone or helping them can be enough to acknowledge another person. I want to explore that idea on a much smaller scale. Text chat exists, but only at the campfire. It's tied to a place, so you talk to whoever is sitting there with you right now, not to a contact list. There are no friend lists, follower counts or private messages, and nothing to keep up with after you leave.
 
 I also read Parimal Satyal's *Rediscovering the Small Web*, which describes the appeal of the creative, personal and independent websites that still exist outside the dominant platforms of the modern web. That made me interested in designing for a deliberately small audience rather than treating scale as a goal. Guinea Pig Sanctuary does not need thousands of users. It is designed for a handful of people sharing one small place.
 
@@ -62,8 +62,9 @@ Some parts of this definition of good can become explicit checks in `spec/`:
 - **Real-time presence:** an action by one visitor appears for another connected visitor within about one second.
 - **Cooperation:** an interaction designed for multiple visitors cannot be completed by one visitor alone.
 - **No ownership:** contributing to a shared structure does not give that visitor exclusive control over it.
+- **Chat stays at the fire:** a campfire message reaches only visitors inside the campfire area, a visitor outside it can't send one, and walking away never sends a draft to anyone else.
 
-Other parts need to be judged by people. During crits I want to watch whether visitors notice each other, whether gestures make sense without instructions, whether people naturally gather around the guinea pigs, and whether changes left by earlier visitors make the sanctuary feel inhabited.
+Other parts need to be judged by people. During crits I want to watch whether visitors notice each other, whether gestures make sense without instructions, whether people naturally gather around the guinea pigs, whether visitors understand that campfire chat is public and feel free to just listen, and whether changes left by earlier visitors make the sanctuary feel inhabited.
 
 ## Shared garden and nearby interactions
 
