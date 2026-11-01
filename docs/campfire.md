@@ -1,6 +1,6 @@
 # Campfire gathering area
 
-The central clearing at (640, 510) reuses the meadow, existing camera, authoritative visitor presence, sitting gesture, WebSocket connection and four named inhabitants. The garden, carrot, buildings and room controls retain their interactions. There was no text-chat system in the inspected game; existing gestures remain available. Seats use nearby E prompts; the music queue lives in the sidebar. Typing or focusing controls does not move the avatar.
+The central clearing at (640, 510) reuses the meadow, existing camera, authoritative visitor presence, sitting gesture, WebSocket connection and four named inhabitants. The garden, carrot, buildings and room controls retain their interactions. Public text chat is available inside the campfire area only (see below and ADR 014); existing gestures remain available. Seats use nearby E prompts; the music queue lives in the sidebar. Typing or focusing controls does not move the avatar.
 
 ## Playing
 
@@ -28,3 +28,11 @@ Near the fire, paste a YouTube or YouTube Music video link and optionally name i
 Enable sound loads the official iframe API. Each listener has independent mute/volume; music fades smoothly with distance from the fire, retaining a quiet background level. It stays at full personal volume within 150 world pixels, fades over the next 400 pixels to 15% of that volume, and rises again on return. Collapsing the radio controls or scrolling them out of view keeps playback running. The video pauses locally when the browser game tab is hidden. Rejoin seeks to the shared server epoch. This is explicitly a shared playback prototype, not synchronised streaming: advertisements, autoplay and embedding restrictions can differ by visitor. The submitter's player can report duration once for the matching playback ID, capped at ten minutes. Without that report a slot lasts five minutes. The submitting session can skip its current YouTube selection. The server verifies owner identity and proximity for skipping.
 
 Checks: `spec/youtube-queue.test.ts` covers URL validation, cross-tab quotas, private ownership, duration validation, stale reports, advancement, fallback and skipping. `browser/youtube-queue.spec.ts` uses two real browser visitors and the real server, with the external iframe API mocked for deterministic playback-control testing. Live YouTube availability remains dependent on the visitor's network and YouTube.
+
+## Campfire chat
+
+The chat area is a circle around the fire. You join within 170 world pixels and leave beyond 210, so walking along the edge doesn't keep toggling membership. Membership comes from the server's own avatar positions every presence tick; only the visitor whose status changed is told, and members see the nearby count. Messages go to the members at send time, including the sender, whose pending copy is replaced through a `clientId`. Late arrivals see only messages sent after they joined. If you leave mid-draft, the draft stays in the box with "Return to the campfire to send." The server checks the live position on send, so a send racing the boundary is refused and the text is returned to the input.
+
+Limits: 200 characters, single line, 5 messages per 10 s and 600 ms apart per signed identity across tabs. Mute is local to the page. Block and report use the `chat_blocks` and `chat_reports` tables. Blocks hide messages in both directions and persist. Reports save the reason and the server's last six messages of context. There's no moderator view yet; query `chat_reports` directly.
+
+Checks: `spec/campfire-chat.test.ts` (unit, temporary databases), `spec/campfire-chat-live.test.ts` (real sockets against the running app) and `browser/campfire-chat.spec.ts`.
