@@ -530,7 +530,7 @@ app.get("/readme/", (_req: Request, res: Response) => {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Guinea Pig Sanctuary — README</title>
+    <title>Hayhaven — README</title>
     <link rel="stylesheet" href="/readme.css" />
   </head>
   <body>
@@ -541,7 +541,7 @@ app.get("/readme/", (_req: Request, res: Response) => {
 
 const port = Number(process.env.PORT ?? 8080);
 const httpServer = app.listen(port, "0.0.0.0", () => {
-  console.log(`Guinea Pig Sanctuary listening on :${port}`);
+  console.log(`Hayhaven listening on :${port}`);
 });
 attachRealtime(httpServer);
 

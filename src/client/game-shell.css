@@ -12,7 +12,7 @@ main.game-shell { width: 100%; height: 100dvh; max-width: none; margin: 0; paddi
 .sidebar-header { flex: none; padding: 19px 17px 14px; background: #6a5639; color: #fff0c5; border-bottom: 4px solid #423722; box-shadow: inset 0 0 0 2px #9b8457; }
 .sidebar-kicker { display: block; font-size: 9px; line-height: 1.5; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #786542; }
 .sidebar-header .sidebar-kicker { color: #cfbe8a; }
-.sidebar-header h1 { font-family: inherit; font-size: 23px; line-height: 1.08; letter-spacing: -1px; margin: 10px 0; text-shadow: 2px 2px #3f3525; }
+.sidebar-header h1 { font-family: inherit; font-size: 30px; line-height: 1.08; letter-spacing: -1px; margin: 10px 0; text-shadow: 2px 2px #3f3525; }
 .sidebar-header h1 span { color: #e6cb82; }
 .sidebar-header .room-name { margin: 10px 0 13px; font-size: 11px; color: #fff0c5; }
 .sidebar-header .room-name span { color: #d0c19a; }
@@ -86,8 +86,6 @@ main.game-shell { width: 100%; height: 100dvh; max-width: none; margin: 0; paddi
 @media (max-height: 620px) {
   .sidebar-header { padding-top: 10px; padding-bottom: 10px; }
   .sidebar-header h1 { font-size: 18px; margin: 5px 0; }
-  .sidebar-header h1 br { display: none; }
-  .sidebar-header h1 span::before { content: " "; }
   .sidebar-header .sidebar-kicker { display: none; }
   .sidebar-header .room-name { margin: 5px 0; }
   .sidebar-controls { padding-top: 7px; padding-bottom: 8px; }

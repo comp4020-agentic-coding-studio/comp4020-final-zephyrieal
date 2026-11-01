@@ -76,7 +76,7 @@ export default function App() {
   }, []);
 
   return (
-    <main className={`game-shell${sidebarOpen ? "" : " sidebar-collapsed"}`} aria-label="Guinea Pig Sanctuary game">
+    <main className={`game-shell${sidebarOpen ? "" : " sidebar-collapsed"}`} aria-label="Hayhaven game">
       <div className="game-viewport">
         <PhaserGame />
         <CampfirePanel />
@@ -91,7 +91,7 @@ export default function App() {
       <aside id="game-sidebar" className="game-sidebar" aria-label="Sanctuary sidebar" inert={!sidebarOpen}>
         <header className="sidebar-header">
           <span className="sidebar-kicker">A little world, together</span>
-          <h1>Guinea Pig<br /><span>Sanctuary</span></h1>
+          <h1>Hay<span>haven</span></h1>
           <p className="room-name">{view === "outdoor" ? "The meadow" : roomName(view)} <span>· shared world</span></p>
           <div className="toolbar">
             <CarePointsBadge value={carePoints} />

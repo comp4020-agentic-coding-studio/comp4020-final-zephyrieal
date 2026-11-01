@@ -1,7 +1,7 @@
 # Your harness
 
-Rules for any agent (human-directed or autonomous) working on Guinea Pig
-Sanctuary. They follow from `README.md`'s definition of good: small moments of
+Rules for any agent (human-directed or autonomous) working on Hayhaven.
+They follow from `README.md`'s definition of good: small moments of
 connection between strangers, without demanding conversation, competition or
 commitment, and a world that remembers its visitors without any one of them owning it.
 

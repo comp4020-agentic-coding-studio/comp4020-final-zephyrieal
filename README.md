@@ -1,6 +1,6 @@
-# Guinea Pig Sanctuary
+# Hayhaven
 
-Guinea Pig Sanctuary is a small real-time world shared by visitors and a persistent group of guinea pigs. People can explore the sanctuary, interact through simple gestures, talk with whoever is at the campfire, spend time with the guinea pigs, and gradually change the environment together. When they leave, those changes remain for whoever comes next.
+Hayhaven is a small real-time world shared by visitors and a persistent group of guinea pigs. People can explore the sanctuary, interact through simple gestures, talk with whoever is at the campfire, spend time with the guinea pigs, and gradually change the environment together. When they leave, those changes remain for whoever comes next.
 
 ## What does good mean here?
 
@@ -10,7 +10,7 @@ Two visitors might help pull a carrot from the ground. Several people might fini
 
 I looked at *Sky: Children of the Light* because it makes encounters with strangers meaningful without immediately relying on normal text chat. Players initially communicate through movement and expressions, with further forms of communication developing through interaction. I like the idea that waving, pointing, sitting beside someone or helping them can be enough to acknowledge another person. I want to explore that idea on a much smaller scale. Text chat exists, but only at the campfire. It's tied to a place, so you talk to whoever is sitting there with you right now, not to a contact list. There are no friend lists, follower counts or private messages, and nothing to keep up with after you leave.
 
-I also read Parimal Satyal's *Rediscovering the Small Web*, which describes the appeal of the creative, personal and independent websites that still exist outside the dominant platforms of the modern web. That made me interested in designing for a deliberately small audience rather than treating scale as a goal. Guinea Pig Sanctuary does not need thousands of users. It is designed for a handful of people sharing one small place.
+I also read Parimal Satyal's *Rediscovering the Small Web*, which describes the appeal of the creative, personal and independent websites that still exist outside the dominant platforms of the modern web. That made me interested in designing for a deliberately small audience rather than treating scale as a goal. Hayhaven does not need thousands of users. It is designed for a handful of people sharing one small place.
 
 ## A world that remembers
 
