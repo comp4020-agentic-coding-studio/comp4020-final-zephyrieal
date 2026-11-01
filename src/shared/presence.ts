@@ -4,7 +4,7 @@ import { MEADOW_WIDTH, MEADOW_HEIGHT } from "./interactions.ts";
 import { isRoom, type Room } from "./rooms.ts";
 export type { Room } from "./rooms.ts";
 export type Gesture = "wave" | "sit" | "help";
-export type PresenceIntent = { type: "campfire-seat"; seatId: string } | { type: "music-add-youtube"; url: string; title: string } | { type: "music-duration"; playbackId: string; seconds: number } | { type: "music-skip"; playbackId: string } | { type: "music-remove" } | MoveIntent | { type: "visitor-gesture"; gesture: Gesture };
+export type PresenceIntent = import("./chat.ts").ChatIntent | { type: "campfire-seat"; seatId: string } | { type: "music-add-youtube"; url: string; title: string } | { type: "music-duration"; playbackId: string; seconds: number } | { type: "music-skip"; playbackId: string } | { type: "music-remove" } | MoveIntent | { type: "visitor-gesture"; gesture: Gesture };
 export interface Player {
   seatId?: string;
   gesture?: Gesture;
@@ -21,6 +21,10 @@ export type PresenceMessage =
   | { type: "presence-welcome"; selfId: string; players: Player[] }
   | { type: "presence-state"; players: Player[] };
 export interface MoveIntent { type: "visitor-input"; room: Room; dx: number; dy: number }
+// The label other visitors see; unnamed visitors get a short public-id tag.
+export function visitorLabel(player: Pick<Player, "id" | "name">): string {
+  return player.name ?? `Visitor ${player.id.slice(0, 4)}`;
+}
 export const WALK_SPEED = 120;
 export const INPUT_LEASE_MS = 350;
 export const ROOM_BOUNDS = {
