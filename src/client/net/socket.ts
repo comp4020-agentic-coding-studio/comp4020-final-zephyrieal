@@ -8,6 +8,7 @@ export type RealtimeMessage =
   | { type: "carrot-updated"; carrot: CarrotState }
   | { type: "music-state"; music: import("../../shared/campfire.ts").MusicState }
   | PresenceMessage
+  | import("../../shared/chat.ts").ChatServerMessage
   | { type: "construction-dust"; projectId: string }
   | { type: "farm-updated"; farm: FarmState }
   | { type: "guinea-pig-fed"; guineaPigId: string; guineaPig: GuineaPig }

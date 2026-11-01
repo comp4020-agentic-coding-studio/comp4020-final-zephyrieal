@@ -414,6 +414,7 @@ export function useSanctuary() {
           return;
         }
         if (msg.type === "music-state") { EventBus.emit("music-state", msg.music); return; }
+        if (msg.type.startsWith("chat-")) { EventBus.emit("chat-server", msg); return; }
         if (msg.type === "farm-updated") { applyFarm(msg.farm); return; }
         if (msg.type === "guinea-pig-fed") {
           if (msg.guineaPigId === "potato") setGuineaPig(msg.guineaPig);

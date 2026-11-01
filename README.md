@@ -83,6 +83,8 @@ Use **Wave** and **Help here** below the meadow. Nearby visitors in the same roo
 ## The campfire
 In the middle of the meadow is a campfire ringed by five logs. Walk beside a free log and choose **Sit** (or press E); you sit down facing the fire, and everyone else sees you seated. Each log holds one visitor at a time. Pressing E again, walking, changing rooms or disconnecting stands you up. The guinea pigs sometimes wander over and sleep near the fire.
 
+Near the fire, the **Campfire chat** panel (bottom left) lets you type to whoever else is there. It's public, it's labelled that way, and it only reaches people inside the campfire area. Walk away and new messages stop reaching you. You can still read this visit's messages, but sending is disabled and anything half-typed stays in the box until you come back. Nothing is sent to anyone else. The ⋯ beside a message lets you mute someone for this visit, block them (kept across visits, hides messages both ways) or report a message. Messages are limited to 200 characters and a few per ten seconds, and they aren't saved. There's no private messaging or friend list: talking is something you do at the fire, together.
+
 The campfire radio is a shared YouTube queue. Near the fire, paste a YouTube or YouTube Music video link in the sidebar; every visitor hears the same queue in order, and each visitor can have one track waiting. **Enable sound** loads the player in your own browser. Mute and volume are yours alone. The music is loudest at the fire and fades to a quiet background as you walk away, and it keeps playing when the radio controls are collapsed. The queue resets when the server restarts. See [`docs/campfire.md`](docs/campfire.md) for details and limits.
 
 ## Furniture the inhabitants use
