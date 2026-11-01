@@ -49,9 +49,7 @@ existing controls and pauses walking while a piece is selected. The guinea pigs
 still wander independently.
 
 Presence lasts only while connected. Departing visitors disappear; reconnecting
-visitors rejoin automatically. To try it locally, run `pnpm dev` and open
-`http://localhost:5173` in two browser windows. Both must connect to the same
-server. Crops, shared food, furniture and construction remain persistent.
+visitors rejoin automatically.
 
 ## What I can test
 
