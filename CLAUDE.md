@@ -2,8 +2,8 @@
 
 Rules for any agent (human-directed or autonomous) working on Guinea Pig
 Sanctuary. They follow from `README.md`'s definition of good: small moments of
-connection between strangers, without conversation, competition or commitment,
-and a world that remembers its visitors without any one of them owning it.
+connection between strangers, without demanding conversation, competition or
+commitment, and a world that remembers its visitors without any one of them owning it.
 
 ## Product principle
 
@@ -21,8 +21,9 @@ Don't add a conventional game mechanic just because games normally have one.
 
 XP, levels, leaderboards, loot, daily rewards, streaks, combat, private
 property, individual guinea pig ownership, social-media feeds, likes, follower
-counts, mandatory accounts, complex inventories. If a feature seems to need one
-of these, the feature is probably wrong, not the rule.
+counts, friend lists, private or direct messages, mandatory accounts, complex
+inventories. If a feature seems to need one of these, the feature is probably
+wrong, not the rule.
 
 **Exception, discussed and approved 2026-10-10:** individual Care Points
 (earned per visitor by feeding, server-authoritative, tracked via the existing
