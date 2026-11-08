@@ -90,6 +90,11 @@ let state: GuineaPigMovement = {
 // so `currentPosition` can tell "mid-walk" from "arrived, resting" without
 // a third state field on the broadcast payload.
 let pauseUntil = state.startedAt + MIN_PAUSE_MS;
+// Separate from `pauseUntil`: a visitor-triggered hold (feeding) rather than
+// her own autonomous resting. `tick` refuses to advance at all while held, so
+// a hold started mid-walk can't be overridden by the next decision becoming
+// due a moment later.
+let holdUntil = 0;
 
 // Returns Huahua's actual position at `now`, interpolated along the current
 // walk --- never mutates anything, so /api/state and a freshly-connecting
@@ -104,6 +109,18 @@ function currentPosition(now: number = Date.now()): GuineaPigMovement {
   return { ...state, x: state.x + (state.targetX - state.x) * t, y: state.y + (state.targetY - state.y) * t };
 }
 
+// Freezes her in place --- wherever she currently is, mid-walk or resting ---
+// until `now + ms`. `tick` refuses every decision until then, so a visitor
+// interacting with her (feeding) reliably stops her rather than racing the
+// next scheduled step.
+function hold(now: number, ms: number): GuineaPigMovement {
+  const pos = currentPosition(now);
+  state = { x: pos.x, y: pos.y, targetX: pos.x, targetY: pos.y, startedAt: now, durationMs: 0 };
+  holdUntil = now + ms;
+  pauseUntil = holdUntil;
+  return state;
+}
+
 // Advances the simulation by exactly one decision, if one is due: either
 // starting a new walk (just arrived, pause elapsed) or doing nothing (still
 // walking, or still pausing). Returns the new state only when a real
@@ -111,6 +128,7 @@ function currentPosition(now: number = Date.now()): GuineaPigMovement {
 // broadcasts on actual change, the same "diff before broadcast" discipline
 // the construction active-builder poller already uses.
 function tick(now: number = Date.now(), random: () => number = Math.random): GuineaPigMovement | undefined {
+  if (now < holdUntil) return undefined;
   const arrived = state.durationMs <= 0 || now - state.startedAt >= state.durationMs;
   if (!arrived) return undefined;
 
@@ -132,8 +150,15 @@ function tick(now: number = Date.now(), random: () => number = Math.random): Gui
   return state;
 }
 
-return { currentPosition, tick };
+return { currentPosition, tick, hold };
 }
 const wanderers = new Map(GUINEA_PIGS.map(p => [p.id as string, createWanderer(p.x, p.y)]));
 export function currentPosition(now = Date.now(), id = "potato") { return wanderers.get(id)!.currentPosition(now); }
 export function tick(now = Date.now(), random = Math.random, id = "potato") { return wanderers.get(id)!.tick(now, random); }
+export const FEED_HOLD_MS = 4000;
+// Holds the outdoor wanderer still for `ms` from `now` --- used when a
+// visitor is actively feeding her (CLAUDE.md: the guinea pig decides what it
+// does, but "a visitor is right next to it interacting" is exactly the kind
+// of proximity influence that rule carves out, not a client command over her
+// movement path or destination).
+export function hold(now = Date.now(), ms = FEED_HOLD_MS, id = "potato") { return wanderers.get(id)!.hold(now, ms); }

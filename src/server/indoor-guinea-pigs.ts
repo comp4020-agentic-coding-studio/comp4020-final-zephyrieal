@@ -1,10 +1,14 @@
 import type { Room } from "../shared/rooms.ts";
 import { GUINEA_PIGS } from "../shared/guinea-pigs.ts";
 import { BLOCKED_TILES, TILE_SIZE, type FurnitureRow } from "./furniture.ts";
-import { currentPosition, tick, type GuineaPigMovement } from "./guinea-pig.ts";
+import { currentPosition, tick, hold, FEED_HOLD_MS, type GuineaPigMovement } from "./guinea-pig.ts";
 
 type Piece = Pick<FurnitureRow, "tile_x" | "tile_y" | "width" | "height"> & Partial<Pick<FurnitureRow, "id" | "kind" | "rotation" | "version">>;
-type Visit = { room: Room; movement: GuineaPigMovement; leaveAt: number; pauseUntil: number; using?: { key: string; phase: "approach" | "using" | "leaving"; activity: NonNullable<GuineaPigMovement["activity"]> }; cooldownUntil?: number };
+// `holdUntil`: a visitor-triggered freeze (feeding), distinct from `pauseUntil`
+// (her own autonomous resting between decisions) and from `using` (her own
+// choice to approach/use a furnishing). Set, it suspends every branch below,
+// the same way `guinea-pig.ts`'s outdoor `tick` refuses to advance while held.
+type Visit = { room: Room; movement: GuineaPigMovement; leaveAt: number; pauseUntil: number; using?: { key: string; phase: "approach" | "using" | "leaving"; activity: NonNullable<GuineaPigMovement["activity"]> }; cooldownUntil?: number; holdUntil?: number };
 const visits = new Map<string, Visit>();
 const pieceKey = (p: Piece) => JSON.stringify([p.id, p.kind, p.tile_x, p.tile_y, p.width, p.height, p.rotation, p.version]);
 const activityFor = (kind?: string): GuineaPigMovement["activity"] =>
@@ -56,9 +60,24 @@ export function visitHouse(room: Room, pieces: Piece[], now = Date.now()) {
   visits.set(pig.id, { room, movement: m, leaveAt: now + 90000, pauseUntil: now + 1000 });
   return { guineaPigId: pig.id, ...m };
 }
+// Freezes the pig in place --- indoors mid-walk, mid-furniture-use, or
+// outdoor-wandering --- while a visitor is actively feeding it. Cancels any
+// furniture approach/use in progress rather than letting it resume once the
+// hold ends: feeding takes priority over whatever she was about to do.
+export function holdInhabitant(id: string, now = Date.now(), ms = FEED_HOLD_MS): GuineaPigMovement {
+  const visit = visits.get(id);
+  if (!visit) return { ...hold(now, ms, id), room: "outdoor" };
+  const p = world(visit.movement, now);
+  visit.using = undefined;
+  visit.movement = movement(p.x, p.y, now, visit.room);
+  visit.holdUntil = now + ms;
+  visit.pauseUntil = visit.holdUntil;
+  return visit.movement;
+}
 export function tickInhabitant(id: string, piecesFor: (room: Room) => Piece[], now = Date.now(), random = Math.random): GuineaPigMovement | undefined {
   const visit = visits.get(id);
   if (!visit) { const m = tick(now, random, id); return m && { ...m, room: "outdoor" }; }
+  if (visit.holdUntil && now < visit.holdUntil) return undefined;
   if (now >= visit.leaveAt) { visits.delete(id); return inhabitantPosition(id, now); }
   const pieces = piecesFor(visit.room);
   const p = world(visit.movement, now);

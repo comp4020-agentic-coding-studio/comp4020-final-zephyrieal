@@ -25,7 +25,7 @@ import {
 import { contribute, getConstructionState, isKnownProject, PROJECTS } from "./construction.ts";
 import { logAction } from "./log.ts";
 import { mintVisitorCookie, verifyVisitorCookie, VISITOR_COOKIE_MAX_AGE } from "./identity.ts";
-import { inhabitantPosition, tickInhabitant, visitHouse } from "./indoor-guinea-pigs.ts";
+import { inhabitantPosition, tickInhabitant, visitHouse, holdInhabitant } from "./indoor-guinea-pigs.ts";
 
 declare global {
   namespace Express {
@@ -193,6 +193,10 @@ app.post("/api/feed", (req: Request, res: Response) => {
     sendToVisitor(req.visitorId, { type: "balance-updated", balance });
     broadcast({ type: "guinea-pig-fed", guineaPigId, guineaPig: getHuahua(guineaPigId) });
     broadcast({ type: "farm-updated", farm: farmState(db) });
+    // Being fed holds her still for a few seconds rather than letting her
+    // wander off mid-interaction --- the server, not the visitor, decides
+    // this (CLAUDE.md: never implement direct player control of a guinea pig).
+    broadcast({ type: "guinea-pig-walking", guineaPigId, ...holdInhabitant(guineaPigId) });
     res.json({ ok: true, guineaPigId, guineaPig: getHuahua(guineaPigId), balance });
 });
 
